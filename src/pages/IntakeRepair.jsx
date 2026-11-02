@@ -16,6 +16,7 @@ import {
   emptyCoordination, assignNextAction, recordEvent, restoreCoordination,
   coordinationCSV, activityCSV,
 } from '@/lib/coordination.mjs';
+import eternityFluxMark from '@/assets/brand/ef-ouroboros-gold.svg?inline';
 import './intake-repair.css';
 
 const STORAGE_KEY = 'intake-repair-station-session-v1';
@@ -125,10 +126,7 @@ function snapshotWithCoordination(dataset, changes, coordination) {
 
 function Mark() {
   return <span className="ir-mark" aria-hidden="true">
-    <svg viewBox="0 0 40 40" fill="none">
-      <path d="M9 10h20M9 20h16M9 30h20M9 10v20M23 10v20M23 20h8" stroke="currentColor" strokeWidth="1.8"/>
-      <circle cx="31" cy="10" r="2" fill="currentColor"/>
-    </svg>
+    <img src={eternityFluxMark} alt="" width="48" height="48" />
   </span>;
 }
 

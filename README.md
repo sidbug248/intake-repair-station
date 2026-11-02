@@ -12,6 +12,8 @@ Start with the fictional example to try the complete workflow. The offline downl
 
 ![The repair queue with fictional cohort records, visible data issues, and a waiting follow-up for Dana Vale assigned to Intake coordinator.](docs/images/workspace.png)
 
+Read the [three-level product guide](docs/PRODUCT_GUIDE.md) for a plain-language walkthrough, an operational explanation, and the technical architecture.
+
 ## A useful first run
 
 Choose **Try fictional example** to explore a small training cohort with duplicate IDs, missing information, inconsistent formatting, and dates that need confirmation. The names and email addresses are fictional.
@@ -128,3 +130,5 @@ Read [Contributing](CONTRIBUTING.md) for the development workflow and [Security]
 Intake Repair Station is available under the [MIT License](LICENSE). You can use, modify, and redistribute it under those terms. Dependencies retain their own licenses; see [Third-party notices](THIRD_PARTY_NOTICES.md). Production and portable builds include the applicable notices.
 
 Created by [Mohsin Siddiqi](https://mohsinsiddiqi.nyc).
+
+The original Eternity Flux ouroboros mark and editable Figma source are documented in [Branding](docs/BRANDING.md).

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" color="#142735" role="img" aria-label="Eternity Flux: EF within an ouroboros">
+  <title>Eternity Flux — Ouroboros EF</title>
+  <path d="M89 19C67 8 41 14 25 33C8 53 11 81 28 99C47 120 77 119 98 103C118 88 123 61 111 40" stroke="#142735" stroke-width="8" stroke-linecap="round"/>
+  <defs><mask id="ef-serpent-cutouts"><rect width="128" height="128" fill="white"/><path d="M90 23L99 26" stroke="black" stroke-width="1.9" stroke-linecap="round"/><circle cx="103" cy="27.5" r="1.45" fill="black"/></mask></defs>
+  <path mask="url(#ef-serpent-cutouts)" d="M111 43C106 39 102 34 100 29C95 29 89 25 84 20C93 21 100 18 105 23C111 28 114 35 111 43Z" fill="#142735"/>
+  <path d="M36 41H62L58 49H44V60H69V41H95L91 49H77V60H92L88 68H77V87H69V68H44V79H62L58 87H36V41Z" fill="#142735"/>
+</svg>

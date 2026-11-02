@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Identity and documentation
+
+- Replaced the placeholder EF mark with an original ouroboros monogram and matching favicon.
+- Added editable vector artwork, a Figma source link, brand usage notes, and a three-level product guide.
+- Refreshed the repository workspace screenshot without changing the CSV or session formats.
+
 ### Added
 
 - Local CSV import with confirmed source-column mapping and preservation of original headers and values.

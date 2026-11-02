@@ -77,15 +77,11 @@ input[type="checkbox"] { accent-color: var(--ir-blue); width: 16px; height: 16px
 .ir-mark {
   display: grid;
   place-items: center;
-  width: 39px;
-  height: 42px;
+  width: 48px;
+  height: 48px;
   flex-shrink: 0;
-  border: 1px solid #b08a4d50;
-  border-radius: 11px;
-  background: #b08a4d09;
-  color: #c9aa73;
 }
-.ir-mark svg { width: 32px; height: 32px; }
+.ir-mark img { display: block; width: 48px; height: 48px; }
 .ir-nav-label { display: flex; gap: 8px; align-items: center; margin: 42px 6px 16px !important; color: #a6b6cd; font-size: 10px; letter-spacing: .13em; }
 .ir-nav-label span { width: 16px; height: 1px; background: #b08a4d; }
 .ir-sidebar nav { display: flex; flex-direction: column; gap: 7px; }
@@ -558,7 +554,8 @@ input[type="checkbox"] { accent-color: var(--ir-blue); width: 16px; height: 16px
   .ir-app { display: block; }
   .ir-sidebar { position: static; width: auto; padding: 19px 22px 0; overflow: hidden; }
   .ir-brand { gap: 11px; }
-  .ir-mark { width: 34px; height: 36px; }
+  .ir-mark { width: 40px; height: 40px; }
+  .ir-mark img { width: 40px; height: 40px; }
   .ir-brand > span:last-child { font-size: 11px; }
   .ir-brand small { font-size: 8px; }
   .ir-sidebar nav { flex-direction: row; gap: 6px; margin: 18px -10px 0; padding: 0 0 12px; overflow-x: auto; }

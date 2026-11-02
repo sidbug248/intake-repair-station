@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 168 112" fill="none" color="#D8B878" role="img" aria-label="Eternity Flux: an infinity serpent enclosing E and F">
+  <title>Eternity Flux — Infinity Serpent EF</title>
+  <defs>
+    <mask id="ef-infinity-cutouts"><rect width="168" height="112" fill="white"/><path d="M129 28L137 31" stroke="black" stroke-width="1.8" stroke-linecap="round"/><circle cx="141.5" cy="32.5" r="1.35" fill="black"/></mask>
+    <mask id="ef-infinity-weave"><rect width="168" height="112" fill="white"/><path d="M74 68L95 44" stroke="black" stroke-width="13"/></mask>
+  </defs>
+  <path d="M131 25C111 19 96 36 84 56C70 79 53 94 32 82C10 70 10 43 31 31C50 19 67 33 84 56C100 79 117 95 138 82C159 69 158 45 145 34" stroke="#D8B878" stroke-width="7.5" stroke-linecap="round" mask="url(#ef-infinity-weave)"/>
+  <path d="M73 71C77 66 81 60 84 56C88 49 92 43 97 38" stroke="#D8B878" stroke-width="7.5" stroke-linecap="round"/>
+  <path d="M147 42C142 40 138 36 136 32C132 32 127 29 123 25C131 26 138 24 142 28C147 32 149 37 147 42Z" fill="#D8B878" mask="url(#ef-infinity-cutouts)"/>
+  <path d="M31 42H52L49 48H37V54H50L47 60H37V67H52L49 73H31V42Z" fill="#D8B878"/>
+  <path d="M114 42H136L133 48H120V55H134L131 61H120V73H114V42Z" fill="#D8B878"/>
+</svg>
