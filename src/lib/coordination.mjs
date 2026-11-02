@@ -1,7 +1,7 @@
 import { encodeCSV, getColumnIndex, MAX_ROWS, validISODate } from './intake.mjs';
 
 export const FOLLOW_UP_STATUSES = ['open', 'waiting', 'done'];
-export const EVENT_TYPES = ['import', 'stage', 'approve', 'undo', 'export', 'backup', 'restore', 'assignment'];
+export const EVENT_TYPES = ['import', 'stage', 'approve', 'undo', 'export', 'backup', 'restore', 'assignment', 'recipe', 'ai'];
 export const COORDINATION_LIMITS = Object.freeze({
   owner: 200, action: 2000, note: 4000, actor: 200, detail: 4000,
   events: 10_000, eventChanges: 100_000, totalText: 4_000_000,

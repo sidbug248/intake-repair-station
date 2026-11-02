@@ -1,4 +1,6 @@
-# CSV format and exports
+# CSV checks and handoff exports
+
+Version 0.2.0 accepts CSV, TSV, and XLSX. This page explains the tabular checks and CSV handoff format. See [Formats and recipes](FORMATS_AND_RECIPES.md) for worksheet selection, original-file preservation, Excel limitations, reusable recipes, and import comparison. The public deployment is paused; these workflows are available in local and offline builds.
 
 ## Input requirements
 
@@ -33,7 +35,7 @@ Second line of the same note"
 
 ## Confirm the column mapping
 
-The app checks five fields. Source columns can have different names and can appear in any order. Select which source column supplies each field before opening the repair queue.
+The default Participant intake recipe checks five fields. Source columns can have different names and can appear in any order. Select which source column supplies each required role before opening the repair queue. A custom recipe can make roles optional and add rules for arbitrary source columns; it is not restricted to participant lists.
 
 | Field used by the app | Example source header | Expected value |
 | --- | --- | --- |
@@ -43,7 +45,7 @@ The app checks five fields. Source columns can have different names and can appe
 | `status` | `Enrollment status` | `pending`, `active`, `completed`, `on_hold`, or `withdrawn` |
 | `start_date` | `Program start date` | A real calendar date in `YYYY-MM-DD` format |
 
-Each field needs its own source column. Obvious header matches may be suggested, but you confirm the mapping. Source headers and column order remain unchanged in the reviewed CSVs. A column named `Notes`, for example, is retained without being treated as one of the five required fields.
+Each mapped role needs a distinct source column. Required roles must be mapped; optional roles can remain unmapped. A mapped optional role is checked when it contains a value. Obvious header matches may be suggested, but you confirm the mapping. Source headers and column order remain unchanged in reviewed CSVs. Extra columns remain available, and a recipe can attach required, unique, email, date, number/range, allowed-value, or length rules to them.
 
 ## What a check means
 
@@ -61,7 +63,7 @@ The formatting suggestion lowercases the domain after `@`, while preserving the 
 
 ### Statuses
 
-Recognized statuses can have their outer whitespace, casing, and separators normalized. For example, ` Active ` can be proposed as `active`, and `on hold` as `on_hold`.
+The active recipe defines allowed status values. Recognized statuses can have their outer whitespace, casing, and separators normalized. For example, ` Active ` can be proposed as `active`, and `on hold` as `on_hold`.
 
 A term such as `complete`, `finished`, `enrolled`, or `paused` may have a plausible meaning, but it is not treated as an automatic formatting fix. Confirm the intended status for that record.
 
@@ -87,19 +89,23 @@ Every proposed correction records the original and new value. Approve it or undo
 
 The ZIP uses the filenames below. Individual CSV downloads add a filename stem from the imported file, such as `cohort-clean.csv`.
 
-### `original.csv`
+### `original.csv`, `original.tsv`, or `original.xlsx`
 
-The unchanged imported text, including its source header, quoting, BOM if present, and line endings. It is not formula-protected or otherwise normalized.
+The original input in its actual format. CSV preserves the imported text, including headers, quoting, BOM if present, and line endings. TSV and XLSX preserve their exact original bytes. The workbook original includes every worksheet, even though only one is reviewed. This download is not formula-protected or normalized.
+
+### `working-source.csv`
+
+Included for TSV and XLSX imports. It contains the tabular values used by the review engine, separate from the preserved original file. XLSX imports use one explicitly selected worksheet; they do not reconstruct a modified workbook on export.
 
 ### `clean.csv`
 
-Source headers followed by records that pass every current check after approved changes. Extra columns stay in their original positions. Record order follows the input. This file may contain only the header if no rows are ready.
+Source headers followed by records that pass every active recipe check after approved changes. Extra columns stay in their original positions. Record order follows the input. This file may contain only the header if no rows are ready.
 
 ### `exceptions.csv`
 
 One row for each source record with unresolved issues. Fields include its source line, issue count and descriptions, source headers, original values, and reviewed values. Headers and cell arrays are stored in JSON columns so uneven source rows remain representable without discarding cells.
 
-Source line numbers refer to physical lines in the original text. A quoted multiline record can span several lines; its reference is the line where that record starts.
+For CSV/TSV, source line numbers refer to physical lines in the input text. A quoted multiline record can span several lines; its reference is the line where that record starts. For XLSX, the reference is the row number in the selected source worksheet, including when a cell contains line breaks.
 
 ### `all-reviewed-rows.csv`
 
@@ -117,13 +123,13 @@ An assignment needs an owner and next action. Its due date can be empty or a rea
 
 ### `activity.csv`
 
-Events in the order recorded by the local workspace, oldest first. The app uses a default `You` actor label alongside the timestamp and action description. It is a useful handoff aid, not an authenticated or tamper-proof record. The label does not prove who performed an action, and someone with a session backup can edit its contents.
+Events in the order recorded by the local workspace, oldest first. Browser events use local actor labels, including the default `You`, alongside the timestamp and action description. This is a useful handoff aid, not a tamper-proof record. Someone with a session backup can edit its contents. Optional companion service history is stored separately and attributes saves/access changes to token identities; it is not included as a verified-person audit in this local CSV.
 
 ### `session.json`
 
-A restorable session containing the original CSV, filename, confirmed mapping, corrections and their approval state, assignments, and activity. A backup can be saved before all corrections are approved. Restore it in the app to continue the review.
+A restorable session containing the working CSV, preserved original TSV/XLSX when applicable, filename, confirmed mapping, active recipe, corrections and their approval state, assignments, and activity. A backup can be saved before all corrections are approved. Restore it in the app to continue the review.
 
-Treat backups as data files: they contain the original records. Restoring a backup replaces the current workspace rather than merging two reviews. The browser accepts backup files up to 10,000,000 bytes; the source CSV inside must still fit the CSV limits. Saved coordination data is also bounded to 10,000 events and 4,000,000 characters of serialized text.
+Treat backups as data files: they contain the original records. Restoring a backup replaces the current workspace rather than merging two reviews. The browser accepts backup files up to 10,000,000 bytes; the working tabular source and original attachment inside must still fit their input limits. Optional companion saves have their own 8 MB snapshot limit; see [Local services](LOCAL_SERVICES.md). Saved coordination data is also bounded to 10,000 events and 4,000,000 characters of serialized text.
 
 ## Spreadsheet formula protection
 

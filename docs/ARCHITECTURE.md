@@ -1,80 +1,96 @@
 # Architecture
 
-Intake Repair Station is a static React application built with Vite. Its data engine is a separate JavaScript module that can be tested without a browser or React.
+Version 0.2.0 has two explicit boundaries: a complete browser application and an optional loopback companion. The public deployment is paused; development and distribution use the repository, local builds, and the portable HTML application.
 
-## Where the work happens
+## Modules
 
 | Part | Responsibility |
 | --- | --- |
-| `src/pages/IntakeRepair.jsx` | Import, mapping confirmation, queue, correction review, assignments, activity, browser persistence, and downloads |
-| `src/lib/intake.mjs` | UTF-8 decoding, strict CSV parsing, mapping, validation, staged changes, CSV exports, and session serialization |
-| `src/lib/coordination.mjs` | Assignments, local activity, validation of saved coordination data, and the related CSV reports |
-| `src/lib/intake.test.mjs` | Engine behavior and regression cases, run with the Node.js test runner |
-| `tests/coordination.test.mjs` | Assignment, activity, and coordination-restoration behavior |
-| `tests/browser/` | Browser workflow checks run with Playwright |
-| `src/pages/intake-repair.css` | Responsive workspace styling and interaction states |
-| `src/App.jsx` | Application entry component |
-| `scripts/build-offline-demo.mjs` | Bundles built assets into a portable HTML application |
-| `scripts/third-party-notices.mjs` | Generates notices for production dependencies |
-| `scripts/package-static.mjs` | Includes license files in the static distribution |
+| `src/pages/IntakeRepair.jsx` | Main workflow, review dialogs, queue filters, assignments, persistence, and handoff downloads |
+| `src/components/` | Guided walkthrough, recipe editor, comparison, AI review, and local service interface |
+| `src/lib/intake.mjs` | Strict delimited parsing, mapping, validation, correction overlay, exports, and session restoration |
+| `src/lib/formats.mjs` | CSV/TSV/XLSX ingestion, bounded ZIP/XML reading, explicit worksheet selection |
+| `src/lib/source.mjs` | Validated original TSV/XLSX metadata and byte-preserving original downloads |
+| `src/lib/recipes.mjs` | Declarative rule validation, recipe serialization, and opt-in browser recipe storage |
+| `src/lib/comparison.mjs` | Read-only comparison of reviewed datasets and reconciliation of ambiguous keys |
+| `src/lib/coordination.mjs` | Assignments, editable local activity, restoration checks, and CSV reports |
+| `src/lib/ai.mjs` | Task scopes, schemas, grounded facts, evidence validation, and workspace revision checks |
+| `src/lib/companion.mjs` | In-memory authenticated client for the optional loopback service |
+| `server/store.mjs` | SQLite workspaces, token identities, membership, revision checks, service events, notifications, and request budgets |
+| `server/companion.mjs` | HTTP routing, Host/Origin/token checks, request limits, AI and confirmed webhook operations |
+| `server/providers.mjs` | Server-only provider configuration, bounded requests/responses, adapters, and secret-safe errors |
+| `server/start.mjs` | Loopback startup, private data-directory setup, token-file creation, and shutdown |
+| `scripts/build-offline-demo.mjs` | Bundles frontend assets into a portable HTML application |
 
-React renders the workspace. CSV processing does not depend on React. ZIP files are assembled in the browser with `fflate`.
+React renders the interface; the review engine does not depend on React. `fflate` builds handoff ZIPs and supplies the streaming inflation primitive used by the checked workbook reader. No new dependency is required for the companion's HTTP, SQLite, crypto, or provider HTTP calls.
 
-## Data model
+## Source, recipe, and correction state
 
-The imported dataset retains the original CSV string, source filename, original headers, confirmed column mapping, and each row's original cells and source line. A stable key identifies the source row within that import; it does not depend on the record's business ID, which may be missing or duplicated.
+A dataset retains its working CSV, original filename and headers, confirmed mapping, recipe, import time, and source cells. TSV/XLSX datasets additionally retain the exact original file bytes as bounded base64 metadata. The working CSV is identified separately from that original.
 
-Corrections are stored separately by source-row key and column index. Each correction has a proposed value and an approval state. The current preview is derived by applying proposals to a copy of the original cells. Exported reviewed values use approved corrections.
+Source rows receive positional keys independent of business IDs, so duplicate or missing identifiers cannot collapse record identity. For text inputs, source-line references identify the beginning of a record. XLSX references identify the selected worksheet's original row number.
 
-Assignments are separate from corrections and source records. Each assignment contains an entered owner, next action, optional due date and note, and a follow-up status. Changing an assignment never fixes or suppresses a validation issue.
+Corrections are an overlay keyed by row and column, each with a proposed value and approval state. Preview values can include proposals; reviewed exports use accepted corrections. Editing an approved proposal resets approval, and reverting to the source removes the correction.
 
-The activity list records actions performed in the workspace. It is local application state, with timestamps, action descriptions, and a default `You` actor label. The data model supports actor labels, but the interface has no reviewer identity field. This is not an identity system, an independently verified audit log, or a record protected against editing.
+Recipes define required canonical roles, allowed statuses, and bounded custom-column rules. They contain declarative data, not code, expressions, or executable regular expressions. The default recipe preserves the participant intake contract. A custom recipe may review another operational schema. Passing validation means passing the active recipe, not establishing factual truth.
 
-## Review and export invariants
+Assignments remain independent of source and correction state. Owner, next action, due date, note, and follow-up status do not override validation. Browser activity remains editable session state and does not prove an external action occurred.
 
-Changes should preserve these behaviors:
+## Ingestion boundaries
 
-1. Imported source text and original row values remain available throughout the review.
-2. Parsing either succeeds within the documented limits or reports an error. It does not import only the first part of an oversized file.
-3. All source records are accounted for as ready rows or exceptions. No automatic deletion, merge, or deduplication occurs.
-4. Suggested corrections remain visible proposals until approved. Changing a proposal's value removes its previous approval.
-5. A pending proposal blocks generated handoff exports. Users can still save the unchanged original and a session backup.
-6. A structural row mismatch remains an exception until the source is corrected and reimported.
-7. Source headers, column order, and extra fields survive reviewed exports.
-8. An assignment's status and a record's validation status remain independent.
+Inputs must fit the documented byte, row, and column limits. Unsupported inputs fail before a partial dataset is accepted. TSV quoting follows the same strict parser with a tab delimiter. Workbooks require explicit sheet selection when more than one sheet exists.
 
-The word “clean” in an export means only that the app's defined checks pass. Validation does not establish source accuracy, contactability, identity, or eligibility.
+The XLSX reader validates ZIP directory and local-header bounds, compression metadata, actual expansion, checksums, XML depth/node counts, and worksheet cell references. Inflation proceeds in bounded chunks. DTDs, external worksheet references, custom entities, and unsupported structures are not loaded. Hidden and blank rows remain represented.
 
-## Persistence and restoration
+Formula cells use stored results with a warning and never execute. Numeric display formats are not interpreted; the underlying number remains visible for review. See [formats and recipes](FORMATS_AND_RECIPES.md) for the precise contract.
 
-An active review lives in memory by default. Optional browser storage serializes the session for that browser profile. A downloaded JSON snapshot provides a portable way to resume it elsewhere.
+## Review, comparison, and export invariants
 
-The session includes the raw source, mapping, corrections, assignments, and events. Restoration rebuilds the dataset and validates the saved structure rather than treating a backup as executable instructions. Restoring replaces the active review; it does not combine independent edits or resolve collaboration conflicts.
+1. Original source content remains available, including the full XLSX when only one worksheet is reviewed.
+2. Every imported source row belongs to the ready or exception partition. No silent deletion, merge, or automatic deduplication occurs.
+3. Pending corrections block reviewed handoffs. Original downloads and session backups remain available.
+4. Source headers, order, and extra fields survive reviewed exports. Structural mismatches remain exceptions until repaired at the source.
+5. Follow-up completion does not resolve a data defect or prove outreach happened.
+6. Comparison uses accepted values and a chosen key. Duplicate/missing keys remain ambiguous, with all affected rows accounted for. It never transfers edits or merges reviews.
+7. Generated CSV uses proper escaping and optional formula protection. The original is not sanitized or rewritten by that export option.
+8. AI suggestions have no direct mutation, approval, messaging, or access-control authority.
 
-Browser storage is local convenience, not durable shared storage. It may be unavailable, cleared by the browser, or accessible to other people using the profile. A downloaded backup is an ordinary unencrypted file.
+## Persistence
 
-## Network boundary
+Core state lives in browser memory. Optional browser session persistence and separately saved recipes require user actions. Portable JSON backups include source, recipe, mapping, corrections, assignments, and events. Restore validates bounded structures and reconstructs the dataset; it replaces the current review rather than combining competing edits.
 
-The application has no data API, backend, authentication service, AI calls, or analytics. CSV contents are processed in the browser and exported through browser downloads. No application operation uploads the imported data.
+Optional companion saves rebuild the same validated snapshot before storing it in SQLite. Saves carry `expectedVersion`; a stale writer receives a conflict instead of overwriting a newer revision. The interface can reload or save a separate workspace. This is revision-based persistence, not real-time collaborative synchronization.
 
-A hosted deployment serves JavaScript, CSS, and other static assets. The host may receive ordinary page requests and keep its own access logs. That network traffic is distinct from transmitting the CSV, but it is why the product describes its processing as local rather than claiming that a hosted page never contacts a server.
+Browser storage, SQLite, and downloaded backups are not independently encrypted vaults. The companion requests private filesystem permissions where the operating system supports them. See [Security](../SECURITY.md).
 
-The production build is the `dist/` directory. Serve it as static files. No environment variable containing an API key or service credential is required. Installing dependencies and obtaining the application initially may require network access.
+## Optional service boundary
 
-After a build, `npm run demo:offline` embeds the JavaScript, stylesheet, and icon into `release/intake-repair-station.html`. This portable copy can be opened directly in a browser without a local server. It does not include a user's workspace. Session backups provide the portable data layer; persistence for `file:` pages is browser-dependent. The project does not use a service worker or promise PWA installation.
+The companion binds only to `127.0.0.1`, checks loopback Host headers and allowed origins, and requires a bearer token for service routes except health. Browser tokens remain in memory. The service stores token hashes, scopes collaborator access to a workspace, and enforces owner/editor/viewer permissions. Tokens identify access authority, not verified people.
 
-The build process carries the application license and production dependency notices into the static distribution. The portable HTML retains these notices as well.
+Service activity is stored separately from editable session activity and records token-attributed saved revisions and access changes. The notification inbox reports those service changes. It does not send email or calendar invitations.
 
-## Why the first version is bounded
+Provider keys and connector secrets stay in the server environment. Public configuration returns permitted models and destination information, not credentials. AI requests are bounded, rate-limited, revision-tagged, and validated against task-specific schemas. Handoff prose is rendered from known facts selected by the model; other AI prose remains advisory and requires review. A stale result cannot be applied to a changed workspace.
 
-The app handles a small, explicit intake contract: ID, name, email, status, and start date. Column mapping accommodates existing source headers without turning the first version into an arbitrary rule-builder.
+The webhook path previews its exact payload, requires current saved revision plus explicit confirmation, and sends only through an editor/owner operation. Saving or importing never sends it automatically. Network errors do not trigger automatic retries.
 
-Limits of 1,000,000 bytes, 2,000 data rows, and 30 columns keep the workflow focused on small operational files. Cross-file identity matching, inferred values, spreadsheet formulas, automatic date conversion, shared accounts, and multi-user synchronization are separate product and engineering problems.
+Full setup, routes, and limitations: [Optional local services and AI](LOCAL_SERVICES.md).
+
+## Network and distribution
+
+The core has no analytics, remote fonts, account requirement, or automatic application-data uploads. Installing dependencies and obtaining the application may require a network connection; using the built offline core does not.
+
+Connecting to the companion does not save the dataset or request inference. Explicit workspace saves send a snapshot to the local service. Explicit remote AI requests send their selected scope to the configured provider. A locally configured Ollama runtime can perform local inference; its cloud features must be disabled for local-only operation. Explicit connector delivery contacts the configured destination.
+
+`npm run build` produces `dist/` and `release/intake-repair-station.html`, carrying the MIT license and dependency notices. The portable HTML is also committed as a repository download. `npm run dev` and `npm run preview` bind to loopback; `npm run local` starts the local frontend and companion together. The portable HTML contains frontend code only; optional services require the separately running companion. The app does not use a service worker or promise PWA installation.
+
+There is no public registration, Google/email authentication, cross-device cloud synchronization, or production hosted service in this release. Do not expose the loopback companion by removing its origin/host/access checks.
+
+## Reuse in a future application family
+
+The review engine, task schemas, snapshots, and service interfaces are separated so a future combined application can reuse them. That future integration would need a shared identity model, explicit workspace authorization, migration/version compatibility, and deployment-specific operational controls. The current repository does not provide those hosted services or reserve features behind a mandatory account.
 
 ## Verification
 
-Run `npm test` for the engine suite and `npm run build` to compile the application. Behavioral checks should cover parsing and limits, mapping, source preservation, staged approvals, reconciliation, export escaping, and session restoration.
+Run `npm test` and `npm run build` after consequential engine or workflow changes. Run `npm run test:e2e` after installing Playwright Chromium. The companion integration tests need permission to bind a local loopback port; they mock upstream AI/connector HTTP.
 
-The browser suite runs with `npm run test:e2e` after `npm run build`. Install Chromium first with `npx playwright install chromium`. Playwright starts a preview server at `http://127.0.0.1:4173`; set `TEST_BASE_URL` to target a server you already run instead.
-
-UI changes also need a browser pass through import, keyboard navigation, record editing, approval, assignment, restore, and download. Record the checks actually performed in the pull request; a passing build alone does not verify the complete user workflow.
+Tests should preserve import bounds, exact originals, reviewed exports, session compatibility, ambiguous comparison behavior, access isolation, stale-write protection, AI scope/secret boundaries, and explicit connector delivery. Report observed results rather than inferring complete workflow correctness from a successful build. See [Validation](VALIDATION.md).

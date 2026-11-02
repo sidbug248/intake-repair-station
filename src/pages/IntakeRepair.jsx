@@ -4,6 +4,7 @@ import {
   CircleCheck, Download, FileInput, FileText, Focus, GitCompare, History,
   ListFilter, LockKeyhole, PackageCheck, RotateCcw, Save, Search,
   ShieldCheck, Sparkles, Table2, Type, Upload, UserRound, X, AlertTriangle,
+  BookOpen, SlidersHorizontal, Database,
 } from 'lucide-react';
 import { zipSync, strToU8 } from 'fflate';
 import {
@@ -17,7 +18,15 @@ import {
   coordinationCSV, activityCSV,
 } from '@/lib/coordination.mjs';
 import eternityFluxMark from '@/assets/brand/ef-ouroboros-gold.svg?inline';
+import { ACCEPTED_IMPORT_TYPES, readImportFile, getOriginalSource } from '@/lib/formats.mjs';
+import { DEFAULT_RECIPE, validateRecipe, applyRecipeMapping } from '@/lib/recipes.mjs';
+import RecipeEditor from '@/components/RecipeEditor.jsx';
+import ComparisonPanel from '@/components/ComparisonPanel.jsx';
+import GuidePanel from '@/components/GuidePanel.jsx';
+import AssistantPanel from '@/components/AssistantPanel.jsx';
+import ServicesPanel from '@/components/ServicesPanel.jsx';
 import './intake-repair.css';
+import './workspace-tools.css';
 
 const STORAGE_KEY = 'intake-repair-station-session-v1';
 const LEGACY_STORAGE_KEY = 'ef-intake-repair-session-v1';
@@ -31,6 +40,7 @@ const EVENT_LABELS = {
   import: 'CSV opened', stage: 'Corrections staged', approve: 'Corrections approved',
   undo: 'Correction undone', assignment: 'Next action updated',
   export: 'Export prepared', backup: 'Backup prepared', restore: 'Session restored',
+  recipe: 'Review rules changed', ai: 'AI suggestion used',
 };
 const VIEWS = [
   { id: 'intake', label: 'Bring in data', icon: FileInput, title: 'A clear start for every intake.', description: 'Bring a CSV, review the exceptions, and give the next person a useful handoff.' },
@@ -38,6 +48,11 @@ const VIEWS = [
   { id: 'review', label: 'Review changes', icon: GitCompare, title: 'Make each correction intentional.', description: 'Compare proposed values with the source. Approve only the changes you mean to make.' },
   { id: 'export', label: 'Export handoff', icon: PackageCheck, title: 'A cleaner file. A complete handoff.', description: 'Keep the ready rows, exceptions, decisions, and next actions together.' },
   { id: 'activity', label: 'Activity', icon: Activity, title: 'See what actually happened.', description: 'A record of actions taken in this workspace, with drafts and decisions kept distinct.' },
+  { id: 'recipes', label: 'Import recipes', icon: SlidersHorizontal, title: 'Make the next import easier.', description: 'Reusable column matches and clear rules for the way your data works.' },
+  { id: 'compare', label: 'Compare versions', icon: GitCompare, title: 'See what changed.', description: 'Compare two files while keeping every source record and uncertain match visible.' },
+  { id: 'assistant', label: 'AI assistance', icon: Sparkles, title: 'A little help. Your decisions.', description: 'Optional suggestions through your provider or a model on your computer.' },
+  { id: 'services', label: 'Saved workspaces', icon: Database, title: 'Pick up where you left off.', description: 'Optional local storage, reviewer access, and connections for ongoing work.' },
+  { id: 'guide', label: 'Quick start', icon: BookOpen, title: 'From a messy list to a useful handoff.', description: 'Learn the workflow with twelve fictional people and five practical steps.' },
 ];
 const FILTERS = [
   { id: 'exceptions', label: 'Needs review' },
@@ -45,6 +60,9 @@ const FILTERS = [
   { id: 'waiting', label: 'Waiting' },
   { id: 'format', label: 'Formatting' },
   { id: 'duplicates', label: 'Duplicate IDs' },
+  { id: 'overdue', label: 'Overdue' },
+  { id: 'ready', label: 'Ready' },
+  { id: 'pending', label: 'Pending changes' },
   { id: 'all', label: 'All records' },
 ];
 
@@ -85,7 +103,7 @@ function tryRecordForDownload(state, event) {
 }
 
 function safeStem(filename) {
-  return (filename || 'intake').replace(/\.csv$/i, '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 100) || 'intake';
+  return (filename || 'intake').replace(/\.(csv|tsv|xlsx)$/i, '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 100) || 'intake';
 }
 
 function safeOriginalName(filename) {
@@ -179,6 +197,16 @@ export default function IntakeRepair() {
   const [inputIsExample, setInputIsExample] = useState(Boolean(initial.dataset?.synthetic));
   const [importPreview, setImportPreview] = useState(null);
   const [columnMap, setColumnMap] = useState({});
+  const [recipe, setRecipe] = useState(() => structuredClone(initial.dataset?.recipe || DEFAULT_RECIPE));
+  const [inputSource, setInputSource] = useState(initial.dataset?.source);
+  const [inputWarnings, setInputWarnings] = useState([]);
+  const [pendingWorkbook, setPendingWorkbook] = useState(null);
+  const [workbookSheets, setWorkbookSheets] = useState([]);
+  const [workbookSheet, setWorkbookSheet] = useState('');
+  const [connection, setConnection] = useState(null);
+  const [remoteWorkspace, setRemoteWorkspace] = useState(null);
+  const [guided, setGuided] = useState(false);
+  const [exported, setExported] = useState(false);
   const [notice, setNotice] = useState(initial.message);
   const [error, setError] = useState('');
   const [modalError, setModalError] = useState('');
@@ -212,7 +240,7 @@ export default function IntakeRepair() {
   const sourceDirty = Boolean(selected && draft.some((value, index) => value !== (selected.values[index] ?? '')));
   const assignmentDirty = Boolean(selected && Object.keys(emptyAssignment()).some(key => assignmentDraft[key] !== editableAssignment(coordination.assignments[selected.key])[key]));
   const activeView = VIEWS.find(item => item.id === view);
-  const nameIndex = dataset ? getColumnIndex(dataset, 'name') : -1;
+  const nameIndex = dataset ? Math.max(0, getColumnIndex(dataset, 'name')) : -1;
   const idIndex = dataset ? getColumnIndex(dataset, 'id') : -1;
   const unassignedCount = inspected.exceptions.filter(row => !coordination.assignments[row.key]?.owner).length;
   const pendingKeys = useMemo(() => new Set(pending.map(edit => edit.rowKey)), [pending]);
@@ -223,13 +251,16 @@ export default function IntakeRepair() {
       : filter === 'waiting' ? assignment?.status === 'waiting'
       : filter === 'format' ? row.issues.some(issue => issue.safe)
       : filter === 'duplicates' ? row.issues.some(issue => issue.code === 'duplicate_id')
+      : filter === 'overdue' ? assignment?.dueDate && assignment.status !== 'done' && assignment.dueDate < new Date().toLocaleDateString('en-CA')
+      : filter === 'ready' ? row.issues.length === 0 && !pendingKeys.has(row.key)
+      : filter === 'pending' ? pendingKeys.has(row.key)
       : row.issues.length > 0;
     const haystack = [
       ...row.values, ...row.issues.map(issue => issue.title),
       assignment?.owner || '', assignment?.action || '',
     ].join(' ').toLowerCase();
     return matches && (!search || haystack.includes(search.toLowerCase()));
-  }), [inspected, coordination, filter, search]);
+  }), [inspected, coordination, filter, search, pendingKeys]);
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
   const visibleRows = filteredRows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
@@ -238,9 +269,12 @@ export default function IntakeRepair() {
     [dataset, changes, pending.length, protectFormulas],
   );
   const mappedFields = REQUIRED_COLUMNS.map(field => columnMap[field]).filter(Boolean);
-  const mappingComplete = mappedFields.length === REQUIRED_COLUMNS.length && new Set(mappedFields).size === REQUIRED_COLUMNS.length;
+  const mappingComplete = recipe.requiredFields.every(field => importPreview?.headers.includes(columnMap[field])) && new Set(mappedFields).size === mappedFields.length;
   const events = useMemo(() => [...coordination.events].reverse(), [coordination]);
   const rawByteLength = useMemo(() => new TextEncoder().encode(raw).length, [raw]);
+  const activeSnapshot = useMemo(() => dataset ? snapshotWithCoordination(dataset, changes, coordination) : null, [dataset, changes, coordination]);
+  const aiSnapshot = useMemo(() => ({ workspace: activeSnapshot, import: { raw, columnMap, recipe } }), [activeSnapshot, raw, columnMap, recipe]);
+  const datasetRevisionKey = dataset ? dataset.importedAt + ':' + dataset.filename : 'empty';
 
   useEffect(() => {
     if (!remember || !dataset) return;
@@ -255,11 +289,26 @@ export default function IntakeRepair() {
   useEffect(() => { setPage(0); }, [filter, search]);
 
   useEffect(() => {
+    function shortcut(event) {
+      if (modal) return;
+      const editing = /^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName) || event.target?.isContentEditable;
+      if (event.key === '/' && view === 'queue' && !editing && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault(); document.getElementById('record-search')?.focus();
+      }
+      if (event.altKey && !event.ctrlKey && !event.metaKey && /^[1-5]$/.test(event.key)) {
+        event.preventDefault(); navigate(VIEWS[Number(event.key) - 1].id);
+      }
+    }
+    window.addEventListener('keydown', shortcut);
+    return () => window.removeEventListener('keydown', shortcut);
+  }, [view, modal]);
+
+  useEffect(() => {
     const dialog = dialogRef.current;
     if (modal && dialog && !dialog.open) dialog.showModal();
     if (!modal && dialog?.open) dialog.close();
     setModalError('');
-    setModalNotice('');
+    if (!modal) setModalNotice('');
   }, [modal]);
 
   function navigate(next) {
@@ -268,14 +317,15 @@ export default function IntakeRepair() {
     window.setTimeout(() => headingRef.current?.focus(), 0);
   }
 
-  function preparePreview(source = raw, sourceFilename = filename, synthetic = inputIsExample) {
+  function preparePreview(source = raw, sourceFilename = filename, synthetic = inputIsExample, originalSource = inputSource) {
     try {
       const preview = previewCSV(source);
       setRaw(source);
       setFilename(sourceFilename);
       setInputIsExample(synthetic);
+      setInputSource(originalSource);
       setImportPreview(preview);
-      setColumnMap({ ...preview.suggestedMap });
+      setColumnMap(recipe.columnMap ? { ...preview.suggestedMap, ...applyRecipeMapping(preview.headers, recipe) } : { ...preview.suggestedMap });
       setError('');
       window.setTimeout(() => mappingRef.current?.focus(), 0);
     } catch (problem) {
@@ -286,19 +336,24 @@ export default function IntakeRepair() {
 
   function tryExample() {
     navigate('intake');
-    preparePreview(EXAMPLE_CSV, 'fictional-cohort.csv', true);
+    setRecipe(structuredClone(DEFAULT_RECIPE));
+    setInputWarnings([]); setWorkbookSheets([]); setPendingWorkbook(null);
+    preparePreview(EXAMPLE_CSV, 'fictional-cohort.csv', true, undefined);
+    setInputSource(undefined);
+    setColumnMap(previewCSV(EXAMPLE_CSV).suggestedMap);
     setNotice('The example contains fictional records. Confirm the column matches to explore the repair queue.');
   }
 
   function importCSV() {
     try {
-      const next = createDataset(raw, filename || 'intake.csv', inputIsExample, { columnMap });
+      const next = createDataset(raw, filename || 'intake.csv', inputIsExample, { columnMap, recipe, ...(inputSource ? { source: inputSource } : {}) });
       const nextCoordination = recordEvent(emptyCoordination(), {
         type: 'import',
         detail: 'Opened ' + next.rows.length + ' records from ' + next.filename + '. Column mapping confirmed.',
         changes: { columnMap },
       });
       setDataset(next);
+      setRemoteWorkspace(null); setExported(false);
       setChanges({});
       setCoordination(nextCoordination);
       setImportPreview(null);
@@ -312,22 +367,30 @@ export default function IntakeRepair() {
     }
   }
 
-  async function readFile(file) {
+  async function readFile(file, sheetName) {
     if (!file) return;
     if (file.size > MAX_BYTES) {
-      setError('Choose a UTF-8 CSV smaller than 1 MB.');
+      setError('Choose a CSV, TSV, or Excel workbook smaller than 1 MB.');
       return;
     }
     try {
-      const content = decodeUTF8(await file.arrayBuffer());
-      setRaw(content);
-      setFilename(file.name);
+      const input = await readImportFile(file, sheetName ? { sheetName } : {});
+      if (input.needsSheet) {
+        setPendingWorkbook(file); setWorkbookSheets(input.sheets); setWorkbookSheet(input.sheets[0]?.name || '');
+        setRaw(''); setFilename(file.name); setImportPreview(null); setInputSource(undefined); setInputWarnings(input.warnings || []);
+        setError(''); setNotice('Choose which worksheet to review. The entire original workbook will be preserved.'); return;
+      }
+      setRaw(input.raw);
+      setFilename(input.filename);
+      setInputSource(input.source);
+      setInputWarnings(input.warnings || []);
+      setWorkbookSheets([]); setPendingWorkbook(null);
       setInputIsExample(false);
       setImportPreview(null);
       setError('');
-      setNotice('CSV read in this browser. Select Inspect CSV to review its column mapping.');
+      setNotice('File read in this browser. Inspect the data to confirm its column mapping.');
     } catch (problem) {
-      setError(problem.message || 'This file could not be read. Choose a UTF-8 CSV or paste its contents.');
+      setError(problem.message || 'This file could not be read. Choose a CSV, TSV, or XLSX file.');
     }
   }
 
@@ -484,10 +547,11 @@ export default function IntakeRepair() {
 
   function exportOriginal() {
     if (!dataset) return;
-    downloadFile(dataset.raw, safeOriginalName(dataset.filename));
-    const recorded = tryRecordForDownload(coordination, { type: 'export', detail: 'Prepared the exact original CSV for download; no transformations applied.' });
+    const original = getOriginalSource(dataset);
+    downloadFile(original.bytes, safeOriginalName(original.filename), original.mime);
+    const recorded = tryRecordForDownload(coordination, { type: 'export', detail: 'Prepared the exact original source file for download; no transformations applied.' });
     setCoordination(recorded.state);
-    setNotice('Original CSV prepared exactly as it was imported. ' + recorded.warning);
+    setNotice('Original source file prepared exactly as it was imported. ' + recorded.warning);
   }
 
   function saveBackup() {
@@ -527,6 +591,10 @@ export default function IntakeRepair() {
     if (!pendingRestore) return;
     const restored = pendingRestore;
     setDataset(restored.dataset);
+    setRecipe(structuredClone(restored.dataset.recipe || DEFAULT_RECIPE));
+    setInputSource(restored.dataset.source);
+    setInputWarnings(restored.dataset.source?.warnings || []);
+    setRemoteWorkspace(null); setExported(false);
     setChanges(restored.changes);
     const recorded = tryRecordForDownload(restored.coordination, {
       type: 'restore', detail: 'Restored workspace from ' + restored.backupName + '. Existing recorded history retained.',
@@ -552,6 +620,8 @@ export default function IntakeRepair() {
         type: 'export', detail: 'Prepared a handoff ZIP with reviewed data, unresolved exceptions, source, approvals, next actions, activity, and a session backup.',
       });
       const next = recorded.state;
+      const original = getOriginalSource(dataset);
+      const originalEntry = 'original.' + original.format;
       const readme = [
         'INTAKE REPAIR STATION — HANDOFF',
         '',
@@ -564,7 +634,8 @@ export default function IntakeRepair() {
         'No source rows have been deleted or merged.',
         '',
         'FILES',
-        'original.csv — exact source text, including original headers and values.',
+        originalEntry + ' — exact imported source file, with its original content preserved.',
+        ...(original.format !== 'csv' ? ['working-source.csv — the selected tabular data used for review; original workbook/TSV is preserved separately.'] : []),
         'clean.csv — approved working values for rows passing the configured checks.',
         'exceptions.csv — unresolved records with issue descriptions and original/reviewed values.',
         'all-reviewed-rows.csv — all retained rows with approved corrections applied.',
@@ -574,7 +645,9 @@ export default function IntakeRepair() {
         'session.json — restore this workspace in Intake Repair Station.',
         '',
         'COLUMN MAPPING',
-        ...REQUIRED_COLUMNS.map(field => field + ' -> ' + dataset.headers[getColumnIndex(dataset, field)]),
+        ...REQUIRED_COLUMNS.map(field => field + ' -> ' + (dataset.headers[getColumnIndex(dataset, field)] || '(unmapped)')),
+        '',
+        'REVIEW RECIPE: ' + (dataset.recipe?.name || 'Participant intake'),
         '',
         'HOW TO READ THIS HANDOFF',
         'Passing a format check does not verify a source fact, identity, or email delivery.',
@@ -583,12 +656,13 @@ export default function IntakeRepair() {
         'Export activity: ' + (recorded.warning || 'This export is included in the activity log.'),
         'Clean and exception CSVs partition the retained source rows. Do not combine them by dropping exceptions.',
         'Spreadsheet formula protection: ' + (protectFormulas ? 'on. Formula-like values are prefixed with an apostrophe in exported copies.' : 'off. Review values before opening in spreadsheet software.'),
-        'The original CSV is never transformed by the export setting.',
+        'The original source file is never transformed by the export setting.',
         '',
         'This archive contains the source data and activity. Share it only with the intended recipient.',
       ].join('\n');
       const files = {
-        'original.csv': strToU8(dataset.raw),
+        [originalEntry]: original.bytes,
+        ...(original.format !== 'csv' ? { 'working-source.csv': strToU8(dataset.raw) } : {}),
         'clean.csv': strToU8(exportResult.cleanCSV),
         'exceptions.csv': strToU8(exportResult.exceptionCSV),
         'all-reviewed-rows.csv': strToU8(exportResult.allCSV),
@@ -600,6 +674,7 @@ export default function IntakeRepair() {
       };
       downloadFile(zipSync(files, { level: 6 }), safeStem(dataset.filename) + '-handoff.zip', 'application/zip');
       setCoordination(next);
+      setExported(true);
       setNotice('Handoff ZIP prepared with all source rows accounted for. ' + recorded.warning);
     } catch (problem) {
       setError('The ZIP could not be prepared. ' + problem.message);
@@ -633,6 +708,8 @@ export default function IntakeRepair() {
     setRaw('');
     setFilename('intake.csv');
     setInputIsExample(false);
+    setInputSource(undefined); setInputWarnings([]); setWorkbookSheets([]); setPendingWorkbook(null);
+    setRemoteWorkspace(null); setExported(false);
     setImportPreview(null);
     setRemember(false);
     setModal(null);
@@ -641,11 +718,59 @@ export default function IntakeRepair() {
     setNotice('The current workspace and saved browser copy were cleared.');
   }
 
+  function applyCurrentRecipe(nextRecipe) {
+    if (!dataset) return;
+    const checked = validateRecipe(nextRecipe, dataset.headers);
+    const next = createDataset(dataset.raw, dataset.filename, dataset.synthetic, {
+      columnMap: dataset.columnMap, recipe: checked, ...(dataset.source ? { source: dataset.source } : {}),
+    });
+    next.importedAt = dataset.importedAt;
+    const nextCoordination = recordEvent(coordination, { type: 'recipe', detail: 'Applied review recipe “' + checked.name + '”. Source data and existing correction decisions are preserved.', changes: { name: checked.name, requiredFields: checked.requiredFields, rules: checked.rules } });
+    setDataset(next); setCoordination(nextCoordination); setRecipe(checked);
+  }
+
+  function loadStoredSnapshot(value) {
+    const restored = restoreSession(value);
+    const nextCoordination = restoreCoordination(value.coordination, restored.dataset);
+    setDataset(restored.dataset); setChanges(restored.changes); setCoordination(nextCoordination);
+    setRaw(restored.dataset.raw); setFilename(restored.dataset.filename); setInputIsExample(restored.dataset.synthetic);
+    setInputSource(restored.dataset.source); setRecipe(structuredClone(restored.dataset.recipe || DEFAULT_RECIPE));
+    setInputWarnings(restored.dataset.source?.warnings || []); setImportPreview(null); setExported(false);
+    setFilter('exceptions'); setSearch(''); setPage(0);
+  }
+
+  function useAIMapping(map) {
+    if (!importPreview) {
+      const source = dataset?.raw || raw;
+      const preview = previewCSV(source);
+      setRaw(source); setFilename(dataset?.filename || filename); setInputSource(dataset?.source || inputSource);
+      setInputIsExample(Boolean(dataset?.synthetic)); setImportPreview(preview);
+    }
+    setColumnMap(map); navigate('intake');
+    setNotice('AI column suggestions are ready to inspect. Confirm the matches before opening the repair queue.');
+  }
+
+  function useAINextAction(rowKey, action, provenance = {}) {
+    const row = inspected.rows.find(item => item.key === rowKey);
+    if (!row) throw new Error('This record is no longer in the current workspace.');
+    setCoordination(recordEvent(coordination, { type: 'ai', rowKey, detail: 'Opened an AI next-action draft for human review. The assignment is not saved until confirmed.', changes: { provider: provenance.provider || 'configured provider', model: provenance.model || 'configured model', proposalId: provenance.id || 'local suggestion' } }));
+    openRow(row, 'action');
+    setAssignmentDraft({ ...editableAssignment(coordination.assignments[rowKey]), action });
+    setModalNotice('AI drafted this next action. Confirm the wording and owner before saving.');
+  }
+
+  function useAIRules(rules) {
+    const headers = importPreview?.headers || dataset?.headers;
+    const next = validateRecipe({ ...recipe, rules: [...recipe.rules, ...rules] }, headers);
+    setRecipe(next); navigate('recipes');
+    setNotice('Proposed rules are in the recipe editor. Inspect and save them, or explicitly apply them to the current workspace.');
+  }
+
   return (
     <div className={'ir-app ' + (focus ? 'ir-focus ' : '') + (readable ? 'ir-readable' : '')}>
       <a className="ir-skip" href="#ir-main">Skip to workspace</a>
       <input
-        ref={restoreRef} className="ir-hidden" tabIndex={-1} type="file" accept=".json,application/json"
+        ref={restoreRef} hidden tabIndex={-1} type="file" accept=".json,application/json"
         aria-label="Restore session JSON"
         onChange={event => { readBackup(event.target.files?.[0]); event.target.value = ''; }}
       />
@@ -667,7 +792,7 @@ export default function IntakeRepair() {
           <p>Keep the source.<br/>Review each change.<br/>Make the next step clear.</p>
           <div><span className="ir-live-dot"/>EVERY RECORD RETAINED</div>
         </div>
-        <div className="ir-sidebar-bottom"><LockKeyhole size={17}/><div>Local processing<small>No data uploads.<br/>No account or AI required.</small></div></div>
+        <div className="ir-sidebar-bottom"><LockKeyhole size={17}/><div>Local by default<small>No account or AI required.<br/>Optional services are your choice.</small></div></div>
         <p className="ir-signature">Build clarity. Keep moving.</p>
       </aside>
 
@@ -677,7 +802,7 @@ export default function IntakeRepair() {
           <div className="ir-top-actions">
             <button className={readable ? 'selected' : ''} onClick={() => setReadable(!readable)} aria-pressed={readable} title="Larger readable text"><Type size={17}/><span>Readable</span></button>
             <button className={focus ? 'selected' : ''} onClick={() => setFocus(!focus)} aria-pressed={focus}><Focus size={17}/><span>{focus ? 'Exit focus' : 'Focus'}</span></button>
-            <span className="ir-local"><LockKeyhole size={12}/>LOCAL ONLY</span>
+            <span className="ir-local"><LockKeyhole size={12}/>{connection ? 'COMPANION CONNECTED' : 'LOCAL WORKSPACE'}</span>
           </div>
         </header>
         {focus && <nav className="ir-focus-nav" aria-label="Workflow in focus mode">
@@ -690,6 +815,7 @@ export default function IntakeRepair() {
             {dataset && <Pill tone={dataset.synthetic ? 'gold' : 'blue'} icon={FileText}>{dataset.synthetic ? 'Fictional example' : 'Your local file'}</Pill>}
           </div>
           <ErrorMessage>{error}</ErrorMessage>
+          {guided && <section className="ir-guide-strip" aria-label="Guided example progress"><BookOpen size={20}/><div><strong>Your first complete handoff</strong><p>{!dataset ? 'Confirm the example’s column matches, then open the queue.' : pending.length ? 'Compare each proposal in Review changes, then approve or undo it.' : !edits.length ? 'Inspect a record, assign a next action, and preview formatting.' : exported ? 'Handoff prepared. Keep the backup to reopen your work.' : 'Your correction decisions are recorded. Prepare the complete ZIP.'}</p></div><button className="ir-text-button" onClick={() => navigate('guide')}>View steps</button><button className="ir-icon-button" aria-label="Close guided walkthrough" onClick={() => setGuided(false)}><X size={16}/></button></section>}
 
           {view === 'intake' && <>
             <section className="ir-hero">
@@ -700,8 +826,9 @@ export default function IntakeRepair() {
                 <div className="ir-hero-actions">
                   <Button variant="gold" onClick={dataset ? () => navigate('queue') : tryExample}>{dataset ? 'Continue your workspace' : 'Try fictional example'}<ArrowRight size={16}/></Button>
                   {!dataset && <button className="ir-hero-link" onClick={() => document.getElementById('csv-source')?.focus()}>Bring my own CSV</button>}
+                  <button className="ir-hero-link" onClick={() => navigate('guide')}>Guided walkthrough</button>
                 </div>
-                {!dataset && <small className="ir-hero-note">No sign-up. Your files stay in this browser.</small>}
+                {!dataset && <small className="ir-hero-note">No sign-up. Review locally; choose optional services when you need them.</small>}
               </div>
               <div className="ir-hero-sheet" aria-label="Illustration of fictional intake records">
                 <div className="ir-sheet-heading"><Table2 size={17}/><span>INTAKE · QUALITY REVIEW</span><span className="ir-sheet-dot"/></div>
@@ -722,19 +849,22 @@ export default function IntakeRepair() {
 
             <div className="ir-import-grid">
               <section className="ir-panel">
-                <div className="ir-section-head"><div><p className="ir-eyebrow">01 / BRING IN DATA</p><h2>A CSV, with context.</h2></div><Pill>UTF-8 · UP TO 1 MB</Pill></div>
+                <div className="ir-section-head"><div><p className="ir-eyebrow">01 / BRING IN DATA</p><h2>A file, with context.</h2></div><Pill>CSV · TSV · XLSX</Pill></div>
                 <div className="ir-file-bar">
-                  <input ref={fileRef} type="file" accept=".csv,text/csv" className="ir-hidden" tabIndex={-1} aria-label="Choose intake CSV" onChange={event => { readFile(event.target.files?.[0]); event.target.value = ''; }}/>
-                  <Button onClick={() => fileRef.current?.click()}><Upload size={16}/>Choose CSV</Button>
+                  <input ref={fileRef} type="file" accept={ACCEPTED_IMPORT_TYPES} hidden tabIndex={-1} aria-label="Choose intake CSV, TSV or Excel" onChange={event => { readFile(event.target.files?.[0]); event.target.value = ''; }}/>
+                  <Button onClick={() => fileRef.current?.click()}><Upload size={16}/>Choose file</Button>
                   <span>{raw ? filename : 'No file selected'}</span>
                   <button className="ir-text-button" onClick={tryExample}>Try fictional example</button>
                 </div>
+                {!!workbookSheets.length && <div className="ir-sheet-picker"><label>Workbook sheet<select value={workbookSheet} onChange={event => setWorkbookSheet(event.target.value)}>{workbookSheets.map(sheet => <option key={sheet.name} value={sheet.name}>{sheet.name}{sheet.hidden ? ' (hidden)' : ''}</option>)}</select></label><Button variant="primary" onClick={() => readFile(pendingWorkbook, workbookSheet)}>Read selected sheet</Button></div>}
+                {!!inputWarnings.length && <ul className="ir-format-warnings">{inputWarnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
                 <label className="ir-label" htmlFor="csv-source">Or paste your CSV</label>
                 <textarea
-                  id="csv-source" className="ir-csv-input" spellCheck={false} value={raw}
-                  onChange={event => { setRaw(event.target.value); setInputIsExample(false); setImportPreview(null); setError(''); }}
+                  id="csv-source" className="ir-csv-input" spellCheck={false} value={raw} readOnly={Boolean(inputSource)}
+                  onChange={event => { setRaw(event.target.value); setInputIsExample(false); setImportPreview(null); setError(''); setInputSource(undefined); setInputWarnings([]); setFilename('intake.csv'); }}
                   placeholder={'id,name,email,status,start_date\nYour CSV headers can be different — match them in the next step.'}
                 />
+                {inputSource && <p className="ir-form-note">This is the tabular preview of your {inputSource.format?.toUpperCase() || 'source'} file. The original stays intact. Make reviewed corrections after import. <button className="ir-text-button" onClick={() => { setInputSource(undefined); setFilename(safeStem(filename) + '.csv'); setInputWarnings([]); setImportPreview(null); setNotice('An editable CSV copy is now the source. The workbook or TSV is no longer attached to this new import.'); }}>Start an editable CSV copy instead</button></p>}
                 <div className={'ir-input-meta ' + (rawByteLength > MAX_BYTES ? 'over-limit' : '')}>
                   <span>{rawByteLength.toLocaleString()} of {MAX_BYTES.toLocaleString()} bytes</span>
                   {rawByteLength > MAX_BYTES && <strong>Over the limit. Source text has not been shortened.</strong>}
@@ -743,29 +873,30 @@ export default function IntakeRepair() {
                   <p>Up to 2,000 records and 30 columns. Extra columns and original values are retained.</p>
                   <Button variant="primary" onClick={() => preparePreview()} disabled={!raw.trim()}>Inspect CSV<ArrowRight size={16}/></Button>
                 </div>
+                <div className="ir-recipe-strip"><SlidersHorizontal size={17}/><span>Recipe: <strong>{recipe.name || 'Unnamed recipe'}</strong> · {recipe.rules.length} additional rules</span><button className="ir-text-button" onClick={() => navigate('recipes')}>Configure recipe</button>{connection && <button className="ir-text-button" onClick={() => navigate('assistant')}>Ask AI for column matches</button>}</div>
 
                 {importPreview && <section className="ir-mapping" aria-labelledby="mapping-heading">
                   <div className="ir-section-head"><div><p className="ir-eyebrow">MATCH, THEN OPEN</p><h2 id="mapping-heading" ref={mappingRef} tabIndex={-1}>Confirm column mapping.</h2></div><Pill tone="blue">{importPreview.rowCount} records</Pill></div>
                   <p>Choose which source column supplies each field. Suggested matches need your confirmation. Headers and source values stay intact.</p>
                   <div className="ir-mapping-fields">
                     {REQUIRED_COLUMNS.map(field => <label key={field}>
-                      <span>{FIELD_LABELS[field]}<code>{field}</code></span>
+                      <span>{FIELD_LABELS[field]}<code>{field}{recipe.requiredFields.includes(field) ? ' · required' : ' · optional'}</code></span>
                       <select value={columnMap[field] || ''} onChange={event => setColumnMap(map => ({ ...map, [field]: event.target.value }))} aria-label={'Source column for ' + FIELD_LABELS[field]}>
-                        <option value="">Choose a source column</option>
+                        <option value="">{recipe.requiredFields.includes(field) ? 'Choose a source column' : 'Not mapped'}</option>
                         {importPreview.headers.map(header => <option key={header} value={header} disabled={REQUIRED_COLUMNS.some(other => other !== field && columnMap[other] === header)}>{header}</option>)}
                       </select>
                     </label>)}
                   </div>
                   <div className="ir-import-footer">
-                    <p>{dataset ? 'Opening this CSV replaces the current workspace. Save a session backup first if you want to keep it.' : 'Each required field needs a different source column. Additional columns are carried through.'}</p>
+                    <p>{dataset ? 'Opening this file replaces the current workspace. Save a session backup first if you want to keep it.' : 'Each mapped role needs a different source column. Additional columns are carried through.'}</p>
                     <Button variant="primary" disabled={!mappingComplete} onClick={importCSV}>Open repair queue<ArrowRight size={16}/></Button>
                   </div>
                 </section>}
               </section>
 
               <aside className="ir-schema">
-                <p className="ir-eyebrow">THE INTAKE CONTRACT</p><h2>Five fields.<br/>Your column names.</h2>
-                <p>Match your headers to these fields. Your source file stays as it is.</p>
+                <p className="ir-eyebrow">A RECIPE THAT FITS</p><h2>Familiar roles.<br/>Your rules.</h2>
+                <p>Start with these five roles, or configure required fields and checks for other columns in Import recipes.</p>
                 <dl>
                   {[
                     ['id', 'A unique source identifier'], ['name', 'The recorded name'],
@@ -773,7 +904,7 @@ export default function IntakeRepair() {
                     ['start_date', 'A real date: YYYY-MM-DD'],
                   ].map(([field, hint]) => <div key={field}><dt>{field}</dt><dd>{hint}</dd></div>)}
                 </dl>
-                <div className="ir-status-list">{STATUSES.map(status => <code key={status}>{status}</code>)}</div>
+                <div className="ir-status-list">{[...new Set(recipe.statuses.filter(Boolean))].map(status => <code key={status}>{status}</code>)}</div>
                 <p className="ir-schema-note">Checks cover format and completeness. They do not confirm identity, source facts, or email delivery.</p>
                 <div className="ir-restore-link"><History size={18}/><div><strong>Picking up previous work?</strong><button className="ir-text-button" onClick={() => restoreRef.current?.click()}>Restore session JSON<ArrowRight size={13}/></button></div></div>
               </aside>
@@ -791,7 +922,7 @@ export default function IntakeRepair() {
               <div className="ir-filters" role="group" aria-label="Filter records">
                 {FILTERS.map(item => <button key={item.id} className={filter === item.id ? 'active' : ''} onClick={() => setFilter(item.id)} aria-pressed={filter === item.id}>{item.label}{item.id === 'unassigned' && <span>{unassignedCount}</span>}</button>)}
               </div>
-              <label className="ir-search"><Search size={17}/><span className="ir-sr-only">Search records, owners, actions, and issues</span><input type="search" placeholder="Find record, owner, or action" value={search} onChange={event => setSearch(event.target.value)}/></label>
+              <label className="ir-search"><Search size={17}/><span className="ir-sr-only">Search records, owners, actions, and issues</span><input id="record-search" type="search" placeholder="Find record, owner, or action" value={search} onChange={event => setSearch(event.target.value)}/></label>
             </div>
             <div className="ir-table-wrap">
               <table className="ir-table">
@@ -859,7 +990,7 @@ export default function IntakeRepair() {
             {pending.length > 0 && <div className="ir-blocked-export" role="status"><AlertTriangle size={22}/><div><strong>Review {pending.length} corrections before exporting.</strong><p>Counts reflect proposed values. Approve or undo every correction to prepare the handoff. Source downloads and session backups remain available.</p></div><Button onClick={() => navigate('review')}>Review changes<ArrowRight size={15}/></Button></div>}
             <section className="ir-zip-card">
               <div className="ir-zip-icon"><PackageCheck size={30}/></div>
-              <div><p className="ir-eyebrow">ONE COMPLETE PACKAGE</p><h2>Ready for the next person.</h2><p>Clean data, exceptions, original CSV, approved change log, next actions, activity, a session backup, and a guide to the files.</p><small>Includes original data. Choose the intended recipient carefully.</small></div>
+              <div><p className="ir-eyebrow">ONE COMPLETE PACKAGE</p><h2>Ready for the next person.</h2><p>Clean data, exceptions, original source file, approved change log, next actions, activity, a session backup, and a guide to the files.</p><small>Includes original data. Choose the intended recipient carefully.</small></div>
               <Button variant="gold" disabled={!!pending.length} onClick={exportZip}><Download size={17}/>Download handoff ZIP</Button>
             </section>
             <div className="ir-export-grid">
@@ -897,9 +1028,15 @@ export default function IntakeRepair() {
             <p className="ir-context-note"><ShieldCheck size={15}/>This log travels with session backups. It is a local record, not an independently verified audit service.</p>
           </> : <Empty onLoad={() => navigate('intake')} onExample={tryExample}/>)}
 
+          {view === 'recipes' && <RecipeEditor recipe={recipe} onChange={setRecipe} headers={importPreview?.headers || dataset?.headers || []} columnMap={importPreview ? columnMap : dataset?.columnMap || {}} onMapping={setColumnMap} onApply={applyCurrentRecipe} hasDataset={Boolean(dataset)}/>}
+          {view === 'compare' && <ComparisonPanel key={datasetRevisionKey} dataset={dataset} changes={changes} onImport={() => navigate('intake')}/>}
+          {view === 'assistant' && <AssistantPanel connection={connection} dataset={dataset} changes={changes} coordination={coordination} importPreview={importPreview} recipe={recipe} snapshot={aiSnapshot} onMapping={useAIMapping} onRules={useAIRules} onNextAction={useAINextAction} onConnect={() => navigate('services')}/>}
+          {view === 'services' && <ServicesPanel connection={connection} onConnection={setConnection} snapshot={activeSnapshot} remote={remoteWorkspace} onRemote={setRemoteWorkspace} onLoad={loadStoredSnapshot} onBackup={saveBackup}/>}
+          {view === 'guide' && <GuidePanel dataset={dataset} pending={pending} edits={edits} coordination={coordination} exported={exported} onExample={() => { setGuided(true); tryExample(); }} navigate={navigate}/>}
+
           <section className="ir-local-note">
             <LockKeyhole size={20}/>
-            <div><strong>Your workspace stays in this browser.</strong><p>{remember ? 'Saved on this device until you turn this off or clear the workspace. Other people using this browser profile can access it.' : 'Session-only by default. Save a backup before closing or refreshing, or choose to remember this workspace.'}</p></div>
+            <div><strong>{connection ? 'You choose when to use the companion.' : 'Your active review stays in this browser.'}</strong><p>{remember ? 'Saved on this device until you turn this off or clear the workspace. Other people using this browser profile can access it.' : 'Session-only by default. Save a backup before closing or refreshing, or choose to remember this workspace.'}{connection && ' Saving a companion workspace and requesting AI are separate, explicit actions.'}</p></div>
             <label><input type="checkbox" checked={remember} onChange={event => toggleRemember(event.target.checked)} disabled={!dataset}/>Remember on this device</label>
           </section>
           <div className="ir-session-actions">
@@ -942,7 +1079,7 @@ export default function IntakeRepair() {
                   {dataset.headers.map((field, index) => {
                     const canonical = REQUIRED_COLUMNS.find(item => getColumnIndex(dataset, item) === index);
                     return <label key={field}><span>{field}{canonical && <small>{FIELD_LABELS[canonical]}</small>}</span>
-                      <textarea rows={canonical ? 1 : 2} value={draft[index] ?? ''} maxLength={10000} onChange={event => setDraft(values => { const next = [...values]; next[index] = event.target.value; return next; })} placeholder={canonical === 'start_date' ? 'YYYY-MM-DD · confirm with source' : canonical === 'status' ? STATUSES.join(' / ') : ''}/>
+                      <textarea rows={canonical ? 1 : 2} value={draft[index] ?? ''} maxLength={10000} onChange={event => setDraft(values => { const next = [...values]; next[index] = event.target.value; return next; })} placeholder={canonical === 'start_date' ? 'YYYY-MM-DD · confirm with source' : canonical === 'status' ? (dataset.recipe?.statuses || STATUSES).join(' / ') : ''}/>
                       <small className="ir-original-hint">Original: {selected.original[index] || '(empty)'}</small>
                     </label>;
                   })}

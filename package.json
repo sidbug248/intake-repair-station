@@ -1,8 +1,8 @@
 {
   "name": "intake-repair-station",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "A private, browser-based CSV repair desk with reviewed corrections, clear ownership, and portable handoffs.",
+  "description": "An open-source local data review workspace with reusable recipes, reviewed corrections, optional AI, and complete handoffs.",
   "type": "module",
   "license": "MIT",
   "author": "Mohsin Siddiqi",
@@ -10,15 +10,17 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite --host 127.0.0.1",
     "build": "vite build && node scripts/package-static.mjs && node scripts/build-offline-demo.mjs",
-    "preview": "vite preview --host 0.0.0.0",
+    "preview": "vite preview --host 127.0.0.1",
     "test": "node --test --test-isolation=none src/lib/*.test.mjs tests/*.test.mjs",
     "test:unit": "node --test --test-isolation=none src/lib/*.test.mjs tests/*.test.mjs",
     "pretest:e2e": "node scripts/build-offline-demo.mjs",
     "test:e2e": "playwright test",
     "notices": "node scripts/third-party-notices.mjs",
-    "demo:offline": "node scripts/build-offline-demo.mjs"
+    "demo:offline": "node scripts/build-offline-demo.mjs",
+    "companion": "node --env-file-if-exists=.env server/start.mjs",
+    "local": "node scripts/start-local.mjs"
   },
   "dependencies": {
     "fflate": "0.8.3",

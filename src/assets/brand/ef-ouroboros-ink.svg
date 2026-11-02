@@ -1,7 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" color="#142735" role="img" aria-label="Eternity Flux: EF within an ouroboros">
-  <title>Eternity Flux — Ouroboros EF</title>
-  <path d="M89 19C67 8 41 14 25 33C8 53 11 81 28 99C47 120 77 119 98 103C118 88 123 61 111 40" stroke="#142735" stroke-width="8" stroke-linecap="round"/>
-  <defs><mask id="ef-serpent-cutouts"><rect width="128" height="128" fill="white"/><path d="M90 23L99 26" stroke="black" stroke-width="1.9" stroke-linecap="round"/><circle cx="103" cy="27.5" r="1.45" fill="black"/></mask></defs>
-  <path mask="url(#ef-serpent-cutouts)" d="M111 43C106 39 102 34 100 29C95 29 89 25 84 20C93 21 100 18 105 23C111 28 114 35 111 43Z" fill="#142735"/>
-  <path d="M36 41H62L58 49H44V60H69V41H95L91 49H77V60H92L88 68H77V87H69V68H44V79H62L58 87H36V41Z" fill="#142735"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600" fill="none" role="img" aria-label="Eternity Flux serif EF monogram within an ouroboros">
+<title>Eternity Flux — Heritage Ouroboros</title>
+<g fill="#102433">
+<path id="serpent-body" d="M330 66 C453 82 549 184 550 310 C551 450 441 563 302 565 C163 568 49 463 52 327 C54 202 145 104 263 82 L278 89 C161 109 83 207 81 328 C79 448 177 536 302 536 C427 536 520 435 520 310 C519 192 428 102 327 93 Z"/>
+<path id="serpent-head" fill-rule="evenodd" d="M344 70 C327 64 317 56 303 56 C291 56 284 62 275 65 L255 70 C249 72 247 76 251 80 L261 84 L278 86 C290 94 302 96 315 92 C327 90 334 94 342 98 C338 88 341 80 344 70 Z M289 70 C292 67 296 67 299 69 C296 72 292 72 289 70 Z M251 79 L274 82 L286 80 L278 85 L262 84 Z M316 72 C311 78 310 86 313 91 C306 87 307 78 316 72 Z"/>
+<path id="letter-e" stroke="#102433" stroke-width="1.7" stroke-linejoin="round" d="M169 173 H321 L324 214 H318 C311 188 302 181 277 181 H212 V257 H248 C264 257 270 252 273 236 H279 V288 H273 C269 270 264 265 248 265 H212 V340 C212 350 216 354 232 354 H276 C299 354 310 342 321 318 H329 L320 363 H169 V356 H181 C193 356 197 352 197 340 V196 C197 184 192 180 180 180 H169 Z"/>
+<path id="letter-f" stroke="#102433" stroke-width="1.7" stroke-linejoin="round" d="M279 280 H433 L437 325 H430 C422 297 411 288 386 288 H323 V368 H363 C380 368 385 362 388 346 H394 V400 H388 C384 381 380 376 363 376 H323 V450 C323 463 329 467 344 467 H356 V474 H279 V467 H290 C303 467 308 462 308 450 V303 C308 291 302 287 290 287 H279 Z"/>
+</g>
 </svg>

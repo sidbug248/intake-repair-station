@@ -1,5 +1,8 @@
-export const REQUIRED_COLUMNS = ['id', 'name', 'email', 'status', 'start_date'];
-export const STATUSES = ['pending', 'active', 'completed', 'on_hold', 'withdrawn'];
+import { CANONICAL_FIELDS, DEFAULT_STATUSES, validateRecipe } from './recipes.mjs';
+import { validateSource } from './source.mjs';
+
+export const REQUIRED_COLUMNS = [...CANONICAL_FIELDS];
+export const STATUSES = [...DEFAULT_STATUSES];
 export const MAX_BYTES = 1_000_000;
 export const MAX_ROWS = 2000;
 export const MAX_COLUMNS = 30;
@@ -19,17 +22,20 @@ function sourceRecords(raw) {
   return { parsed, headers };
 }
 
-function resolveColumnMap(headers, supplied) {
+function resolveColumnMap(headers, supplied, requiredFields = REQUIRED_COLUMNS) {
   if (supplied !== undefined && (!isRecord(supplied) || Object.keys(supplied).some(key => !REQUIRED_COLUMNS.includes(key)))) {
     throw new Error('Column mapping must use only id, name, email, status, and start_date.');
   }
-  const columnMap = Object.fromEntries(REQUIRED_COLUMNS.map(field => [field, supplied === undefined ? field : (owns(supplied, field) ? supplied[field] : undefined)]));
-  const missing = REQUIRED_COLUMNS.filter(field => typeof columnMap[field] !== 'string' || !headers.includes(columnMap[field]));
+  const columnMap = Object.fromEntries(REQUIRED_COLUMNS.map(field => [field, supplied === undefined ? (headers.includes(field) ? field : '') : (owns(supplied, field) ? supplied[field] : '')]));
+  const invalid = REQUIRED_COLUMNS.filter(field => typeof columnMap[field] !== 'string' || (columnMap[field] && !headers.includes(columnMap[field])));
+  if (invalid.length) throw new Error(`Choose an existing source column for: ${invalid.join(', ')}.`);
+  const missing = requiredFields.filter(field => !columnMap[field]);
   if (missing.length) {
     if (supplied === undefined) throw new Error(`Missing required columns: ${missing.join(', ')}. Map the source columns or use these exact headers: ${REQUIRED_COLUMNS.join(', ')}.`);
     throw new Error(`Choose an existing source column for: ${missing.join(', ')}.`);
   }
-  if (new Set(Object.values(columnMap)).size !== REQUIRED_COLUMNS.length) throw new Error('Use a different source column for each required field.');
+  const assigned = Object.values(columnMap).filter(Boolean);
+  if (new Set(assigned).size !== assigned.length) throw new Error('Use a different source column for each required field.');
   return columnMap;
 }
 
@@ -95,7 +101,10 @@ IR-1011,Kai River,kai.river@example.com,pending,2026-11-12,Ready for the next st
 IR-1012,Linden Ash,linden.ash@example.com,active,2026-11-13,All examples are fictional`;
 
 /** Strict quoted CSV parser. Keeps blank records and source line numbers. */
-export function parseCSV(text) {
+export function parseCSV(text) { return parseDelimited(text, ','); }
+
+export function parseDelimited(text, delimiter = ',') {
+  if (![',', '\t'].includes(delimiter)) throw new Error('Only CSV and TSV delimiters are supported.');
   if (typeof text !== 'string') throw new Error('Paste a CSV or choose a UTF-8 CSV file.');
   if (new TextEncoder().encode(text).length > MAX_BYTES) throw new Error('Choose a file smaller than 1 MB.');
   if (!text.trim()) throw new Error('The CSV is empty. Paste data or load the fictional example.');
@@ -122,7 +131,7 @@ export function parseCSV(text) {
       }
       continue;
     }
-    if (char === ',') { endField(); continue; }
+    if (char === delimiter) { endField(); continue; }
     if (char === '\r' || char === '\n') {
       endRow();
       if (char === '\r' && source[i + 1] === '\n') i++;
@@ -144,10 +153,12 @@ export function createDataset(raw, filename = 'intake.csv', synthetic = false, o
   const { parsed, headers } = sourceRecords(raw);
   if (!isRecord(options)) throw new Error('Dataset options must contain a column mapping.');
   if (typeof filename !== 'string' || !filename || filename.length > 1024 || typeof synthetic !== 'boolean') throw new Error('The source filename or example flag is invalid.');
-  const columnMap = resolveColumnMap(headers, options.columnMap);
+  const recipe = validateRecipe(options.recipe, headers);
+  const columnMap = resolveColumnMap(headers, options.columnMap, recipe.requiredFields);
+  const source = validateSource(options.source);
   return {
-    version: 1, raw, filename, synthetic, headers, columnMap, importedAt: new Date().toISOString(),
-    rows: parsed.slice(1).map((row, index) => ({ key: `row-${index + 1}`, sourceLine: row.sourceLine, original: [...row.values] })),
+    version: 1, raw, filename, synthetic, headers, columnMap, recipe, ...(source ? { source } : {}), importedAt: new Date().toISOString(),
+    rows: parsed.slice(1).map((row, index) => ({ key: `row-${index + 1}`, sourceLine: source?.format === 'xlsx' ? index + 2 : row.sourceLine, original: [...row.values] })),
   };
 }
 
@@ -217,18 +228,23 @@ const statusKey = value => value.trim().toLowerCase().replace(/[\s-]+/g, '_');
 const aliases = { complete: 'completed', finished: 'completed', enrolled: 'active', paused: 'on_hold' };
 
 /** Safe suggestions never infer dates, IDs, names, or status synonyms. */
-export function safeNormalization(field, value) {
+export function safeNormalization(field, value, statuses = STATUSES) {
   let normalized = value.trim();
   if (field === 'email' && normalized.includes('@')) {
     const at = normalized.lastIndexOf('@');
     normalized = normalized.slice(0, at + 1) + normalized.slice(at + 1).toLowerCase();
   }
-  if (field === 'status' && STATUSES.includes(statusKey(normalized))) normalized = statusKey(normalized);
+  if (field === 'status') {
+    const match = statuses.find(status => statusKey(status) === statusKey(normalized));
+    if (match !== undefined) normalized = match;
+  }
   return normalized;
 }
 
 export function inspectDataset(dataset, changes = {}, reviewedOnly = false) {
   validateChanges(dataset, changes);
+  const recipe = validateRecipe(dataset.recipe, dataset.headers);
+  resolveColumnMap(dataset.headers, dataset.columnMap, recipe.requiredFields);
   const rows = dataset.rows.map(row => ({ ...row, values: currentValues(row, changes, reviewedOnly), issues: [] }));
   const index = Object.fromEntries(REQUIRED_COLUMNS.map(field => [field, getColumnIndex(dataset, field)]));
   const ids = new Map();
@@ -236,6 +252,17 @@ export function inspectDataset(dataset, changes = {}, reviewedOnly = false) {
     const id = (row.values[index.id] ?? '').trim();
     if (id) { if (!ids.has(id)) ids.set(id, []); ids.get(id).push(row.key); }
   }
+  const uniqueRules = new Map();
+  recipe.rules.forEach((rule, ruleIndex) => {
+    if (rule.type !== 'unique') return;
+    const seen = new Map();
+    const column = dataset.headers.indexOf(rule.column);
+    for (const row of rows) {
+      const value = (row.values[column] ?? '').trim();
+      if (value) { if (!seen.has(value)) seen.set(value, []); seen.get(value).push(row.key); }
+    }
+    uniqueRules.set(ruleIndex, seen);
+  });
   for (const row of rows) {
     const add = (code, field, title, detail, options = {}) => row.issues.push({
       key: `${row.key}:${code}:${field}`, rowKey: row.key, sourceLine: row.sourceLine,
@@ -243,19 +270,20 @@ export function inspectDataset(dataset, changes = {}, reviewedOnly = false) {
     });
     if (row.original.length !== dataset.headers.length) add('column_count', 'row', 'Column count mismatch', `This source row has ${row.original.length} values for ${dataset.headers.length} headers. Correct the source CSV and reimport; the original row remains in exceptions.`);
     for (const field of REQUIRED_COLUMNS) {
+      if (index[field] < 0) continue;
       const value = row.values[index[field]] ?? '';
       const trimmed = value.trim();
       if (!trimmed) {
-        add(`missing_${field}`, field, `Missing ${field === 'id' ? 'ID' : field.replace('_', ' ')}`, 'Check the source record and enter the confirmed value. No value is inferred.');
+        if (recipe.requiredFields.includes(field)) add(`missing_${field}`, field, `Missing ${field === 'id' ? 'ID' : field.replace('_', ' ')}`, 'Check the source record and enter the confirmed value. No value is inferred.');
         continue;
       }
-      const safe = safeNormalization(field, value);
+      const safe = safeNormalization(field, value, recipe.statuses);
       if (safe !== value) add('normalization', field, 'Formatting variation', 'Review a whitespace or casing correction. The underlying value is preserved in the original.', { suggested: safe, safe: true });
       if (field === 'id' && ids.get(trimmed)?.length > 1) add('duplicate_id', field, 'Duplicate ID', `${ids.get(trimmed).length} rows share this ID after outer whitespace is removed. Confirm each source ID; neither row is deleted.`);
       if (field === 'email' && !/^[^\s@,]+@[^\s@,]+\.[^\s@,.]{2,}$/.test(trimmed)) add('invalid_email', field, 'Email format needs checking', 'Enter a confirmed address. A format check cannot verify whether a mailbox exists.');
-      if (field === 'status' && !STATUSES.includes(statusKey(trimmed))) {
-        const suggested = owns(aliases, statusKey(trimmed)) ? aliases[statusKey(trimmed)] : undefined;
-        add('status_variant', field, 'Status needs confirmation', suggested ? `The source uses “${trimmed}”. “${suggested}” may be the intended status; confirm it before changing.` : `Use one of: ${STATUSES.join(', ')}. Confirm the source meaning first.`, { ...(suggested ? { suggested } : {}) });
+      if (field === 'status' && !recipe.statuses.some(status => statusKey(status) === statusKey(trimmed))) {
+        const suggested = owns(aliases, statusKey(trimmed)) && recipe.statuses.includes(aliases[statusKey(trimmed)]) ? aliases[statusKey(trimmed)] : undefined;
+        add('status_variant', field, 'Status needs confirmation', suggested ? `The source uses “${trimmed}”. “${suggested}” may be the intended status; confirm it before changing.` : `Use one of: ${recipe.statuses.join(', ')}. Confirm the source meaning first.`, { ...(suggested ? { suggested } : {}) });
       }
       if (field === 'start_date' && !validISODate(trimmed)) {
         const parts = trimmed.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
@@ -263,6 +291,27 @@ export function inspectDataset(dataset, changes = {}, reviewedOnly = false) {
         add(ambiguous ? 'ambiguous_date' : 'invalid_date', field, ambiguous ? 'Ambiguous date' : 'Date needs checking', ambiguous ? 'Day/month and month/day give different dates. Confirm the intended date with the source, then enter YYYY-MM-DD. No interpretation is selected.' : 'Use a real calendar date in YYYY-MM-DD format. No dates are inferred or automatically converted.');
       }
     }
+    recipe.rules.forEach((rule, ruleIndex) => {
+      const column = dataset.headers.indexOf(rule.column);
+      const value = row.values[column] ?? '';
+      const trimmed = value.trim();
+      let detail = '';
+      const titles = { required: 'Required value missing', unique: 'Duplicate value', email: 'Email format needs checking', date: 'Date needs checking', number: 'Number needs checking', enum: 'Value not allowed', min_length: 'Value is too short', max_length: 'Value is too long' };
+      if (rule.type === 'required' && !trimmed) detail = 'This recipe requires a value. Check the source; no value is inferred.';
+      else if (trimmed) {
+        if (rule.type === 'unique' && uniqueRules.get(ruleIndex).get(trimmed)?.length > 1) detail = 'Several rows share this value after outer whitespace is removed. Each row is retained; confirm the source.';
+        if (rule.type === 'email' && !/^[^\s@,]+@[^\s@,]+\.[^\s@,.]{2,}$/.test(trimmed)) detail = 'Enter a confirmed email address. This rule checks syntax, not mailbox existence.';
+        if (rule.type === 'date' && !validISODate(trimmed)) detail = 'Use a real calendar date in YYYY-MM-DD format. No interpretation is inferred.';
+        if (rule.type === 'number') {
+          const valid = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(trimmed) && Number.isFinite(Number(trimmed));
+          if (!valid || (rule.min !== undefined && Number(trimmed) < rule.min) || (rule.max !== undefined && Number(trimmed) > rule.max)) detail = `Use a finite number${rule.min !== undefined ? ` at least ${rule.min}` : ''}${rule.max !== undefined ? ` at most ${rule.max}` : ''}. Separators and currency symbols are not inferred.`;
+        }
+        if (rule.type === 'enum' && !rule.values.includes(trimmed)) detail = `Choose a confirmed value from: ${rule.values.join(', ')}. Matching is case-sensitive.`;
+        if (rule.type === 'min_length' && Array.from(value).length < rule.length) detail = `Use at least ${rule.length} characters. No content is generated.`;
+        if (rule.type === 'max_length' && Array.from(value).length > rule.length) detail = `Use at most ${rule.length} characters. No content is truncated.`;
+      }
+      if (detail) add(`rule_${ruleIndex}_${rule.type}`, rule.column, titles[rule.type], detail, { column, recipeRule: ruleIndex });
+    });
   }
   const issues = rows.flatMap(row => row.issues);
   return { rows, issues, clean: rows.filter(row => !row.issues.length), exceptions: rows.filter(row => row.issues.length), duplicateGroups: [...ids.values()].filter(group => group.length > 1).length };
@@ -305,7 +354,7 @@ export function restoreSession(value) {
   if (value.filename !== undefined && (typeof value.filename !== 'string' || !value.filename || value.filename.length > 1024)) throw new Error('Saved filename is invalid.');
   if (value.synthetic !== undefined && typeof value.synthetic !== 'boolean') throw new Error('Saved example flag must be true or false.');
   if (value.changes !== undefined && (!Array.isArray(value.changes) || value.changes.length > MAX_ROWS * MAX_COLUMNS)) throw new Error('Saved changes must be a bounded list of field edits.');
-  const dataset = createDataset(value.raw, value.filename ?? 'intake.csv', value.synthetic ?? false, { columnMap: value.columnMap });
+  const dataset = createDataset(value.raw, value.filename ?? 'intake.csv', value.synthetic ?? false, { columnMap: value.columnMap, recipe: value.recipe, source: value.source });
   if (value.importedAt !== undefined) {
     if (typeof value.importedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value.importedAt)
       || !Number.isFinite(new Date(value.importedAt).valueOf()) || new Date(value.importedAt).toISOString() !== value.importedAt) throw new Error('Saved import time is invalid.');
@@ -333,6 +382,6 @@ export function restoreSession(value) {
 
 export function sessionSnapshot(dataset, changes) {
   return { version: 1, raw: dataset.raw, filename: dataset.filename, synthetic: dataset.synthetic,
-    columnMap: { ...dataset.columnMap }, importedAt: dataset.importedAt,
+    columnMap: { ...dataset.columnMap }, recipe: validateRecipe(dataset.recipe), ...(dataset.source ? { source: validateSource(dataset.source) } : {}), importedAt: dataset.importedAt,
     changes: listChanges(dataset, changes).map(change => ({ rowKey: change.rowKey, column: change.column, value: change.after, approved: change.approved })) };
 }
