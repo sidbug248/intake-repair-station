@@ -7,7 +7,7 @@
   "license": "MIT",
   "author": "Mohsin Siddiqi",
   "engines": {
-    "node": ">=22.12.0"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",

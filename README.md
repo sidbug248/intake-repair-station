@@ -6,6 +6,10 @@ Intake Repair Station is a free, open-source workspace for people who inherit pa
 
 Everything runs in your browser. There is no account, backend, AI service, or subscription to configure.
 
+**[Try the live app](https://intake-repair-station.vercel.app/)** · **[Download the offline app](https://intake-repair-station.vercel.app/intake-repair-station.html)**
+
+Start with the fictional example to try the complete workflow. The offline download is a single HTML file you can open in your browser.
+
 ![The repair queue with fictional cohort records, visible data issues, and a waiting follow-up for Dana Vale assigned to Intake coordinator.](docs/images/workspace.png)
 
 ## A useful first run
@@ -22,7 +26,7 @@ An unresolved record remains in the exception file. Marking its follow-up Action
 
 ## Run it locally
 
-Use **Node.js 22.12.0 or newer** and npm. The `.nvmrc` file selects Node.js 24 if you use nvm. Run these commands from the project folder:
+Use **Node.js 24** and npm. The `.nvmrc` file selects the same major version used by CI and the hosted build. Run these commands from the project folder:
 
 ```sh
 npm ci
