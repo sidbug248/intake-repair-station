@@ -1,0 +1,35 @@
+{
+  "name": "intake-repair-station",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A private, browser-based CSV repair desk with reviewed corrections, clear ownership, and portable handoffs.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Mohsin Siddiqi",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build && node scripts/package-static.mjs && node scripts/build-offline-demo.mjs",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test --test-isolation=none src/lib/*.test.mjs tests/*.test.mjs",
+    "test:unit": "node --test --test-isolation=none src/lib/*.test.mjs tests/*.test.mjs",
+    "pretest:e2e": "node scripts/build-offline-demo.mjs",
+    "test:e2e": "playwright test",
+    "notices": "node scripts/third-party-notices.mjs",
+    "demo:offline": "node scripts/build-offline-demo.mjs"
+  },
+  "dependencies": {
+    "fflate": "0.8.3",
+    "lucide-react": "1.66.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.62.1",
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "8.3.5"
+  }
+}

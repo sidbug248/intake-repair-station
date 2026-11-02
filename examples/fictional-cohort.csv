@@ -1,0 +1,14 @@
+id,name,email,status,start_date,notes
+IR-1001,Amara Ellis,amara.ellis@example.com,active,2026-11-02,Orientation confirmed
+IR-1002,"Bennett, Sol",sol.bennett@example.com, Active ,2026-11-03,"Prefers a morning session, if available"
+IR-1003,Casey Rowan,casey.rowan.example.com,pending,2026-11-04,Confirm contact information
+IR-1004,Dana Vale,dana.vale@example.com,completed,11/06/2026,Ask which date convention was used
+IR-1004,Eli Hart,eli.hart@example.com,active,2026-11-05,Check the source ID against the intake record
+,Fern Avery,fern.avery@example.com,pending,2026-11-06,An ID was not recorded
+IR-1007,  Gray Ellis  ,gray.ellis@EXAMPLE.COM,on hold,2026-11-09,Awaiting a scheduling update
+IR-1008,Haven Reed,haven.reed@example.com,complete,2026-11-10,"Source says ""complete""; confirm the intended status"
+IR-1009,Indigo Lane,indigo.lane@example.com,active,2026-02-30,The calendar date needs checking
+IR-1010,Jordan Moss,jordan.moss@example.com,withdrawn,2026-11-11,"A fictional note with
+two lines; both are preserved"
+IR-1011,Kai River,kai.river@example.com,pending,2026-11-12,Ready for the next step
+IR-1012,Linden Ash,linden.ash@example.com,active,2026-11-13,All examples are fictional
