@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Handoff — fictional-cohort.csv — Relay Station</title>
+  <style>
+  :root { color-scheme: light; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #17253b; background: #fbfaf7; line-height: 1.6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  a { color: #285789; text-underline-offset: .2em; }
+  a:focus-visible, summary:focus-visible, .table-scroll:focus-visible { outline: 3px solid #926a31; outline-offset: 4px; }
+  h1, h2, h3, h4, p { margin: 0; }
+  h1, h2, h3, h4 { line-height: 1.25; letter-spacing: -.025em; }
+  h1 { margin: 20px 0 12px; font-size: clamp(2.2rem, 6vw, 3.5rem); font-weight: 650; }
+  h2 { font-size: 1.65rem; }
+  h3 { font-size: 1.2rem; }
+  h4 { font-size: 1rem; }
+  p + p { margin-top: 10px; }
+  .page { width: min(1040px, 100%); margin: 0 auto; padding: 44px 24px 60px; }
+  .hero { padding: 34px 38px; border-radius: 18px; background: #142339; color: #f6f2e9; border-top: 4px solid #b8965e; }
+  .brand { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; font-size: 1.05rem; font-weight: 650; }
+  .brand span { color: #d4bd93; font-size: .8rem; font-weight: 500; }
+  .hero .description { max-width: 700px; color: #d4dfed; font-size: 1.05rem; }
+  .hero .source { margin-top: 24px; padding-top: 18px; border-top: 1px solid #536177; color: #d4dfed; overflow-wrap: anywhere; }
+  .hero .source strong { color: #fff; }
+  .hero .meta { color: #bdcce0; }
+  .fictional { display: inline-block; margin-top: 12px; border: 1px solid #b49764; padding: 3px 9px; border-radius: 5px; color: #edd7ae; font-size: .8rem; }
+  nav { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 20px 2px; font-size: .9rem; }
+  .summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
+  .stat { padding: 19px 20px; background: white; border: 1px solid #dfe3e2; border-radius: 12px; }
+  .stat strong { display: block; font-size: 2rem; line-height: 1.15; }
+  .stat span { display: block; margin-top: 7px; font-size: .85rem; color: #506075; }
+  .stat.needs { border-color: #d4bc91; }
+  .reconciliation { margin-top: 16px; }
+  .meta, .section-description { color: #526174; font-size: .9rem; }
+  .section-description { margin-top: 10px; }
+  section { margin-top: 38px; scroll-margin-top: 20px; }
+  .section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .count, .badge { display: inline-block; border: 1px solid #d5dce1; background: #f2f5f8; color: #344b65; border-radius: 6px; padding: 3px 8px; font-size: .8rem; font-weight: 550; }
+  .count { border-color: #ddcba9; background: #f7efdf; color: #6d4b18; }
+  .callout { margin-top: 18px; padding: 16px 20px; border-left: 3px solid #ad864a; background: #f4eddf; border-radius: 0 8px 8px 0; }
+  .callout h3 { margin-bottom: 5px; font-size: 1rem; }
+  .callout p { font-size: .9rem; }
+  .questions { display: grid; gap: 16px; }
+  .question, .record { padding: 22px; background: white; border: 1px solid #dfe3e2; border-radius: 12px; min-width: 0; overflow-wrap: anywhere; }
+  .question-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+  .question-header .meta { margin-top: 4px; }
+  .question-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; }
+  .issue-list { list-style: none; margin: 0; padding: 0; }
+  .issue-list li + li { border-top: 1px solid #e4e6e5; margin-top: 14px; padding-top: 14px; }
+  .issue-list strong { font-size: .95rem; }
+  .issue-list p { margin-top: 5px; font-size: .9rem; }
+  .field-label { display: inline-block; color: #5a6a7a; margin-left: 8px; font-size: .8rem; }
+  .issue-value { color: #485a6d; }
+  .next-step { padding: 17px; background: #f1f5f8; border-radius: 9px; align-self: start; min-width: 0; }
+  .next-step-heading { display: flex; flex-wrap: wrap; gap: 9px; justify-content: space-between; align-items: center; }
+  .next-step .action { margin-top: 12px; }
+  .next-step .meta { margin-top: 8px; }
+  .note { margin-top: 13px; padding-top: 12px; border-top: 1px solid #d6dfe5; font-size: .9rem; }
+  .unassigned { background: #f8f0e2; border: 1px dashed #b89b6b; }
+  .unassigned h4 { color: #74521e; }
+  .unassigned p { margin-top: 8px; font-size: .9rem; }
+  .still-open { margin-top: 12px; color: #74521e; font-size: .85rem; }
+  .record-link { display: inline-block; margin-top: 14px; font-size: .85rem; }
+  .value { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .empty { color: #596777; font-style: italic; }
+  .table-scroll { overflow-x: auto; border: 1px solid #dfe3e2; border-radius: 10px; background: white; }
+  table { border-collapse: collapse; width: 100%; text-align: left; font-size: .9rem; }
+  caption { text-align: left; padding: 14px 18px; color: #526174; }
+  th, td { padding: 12px 16px; border-top: 1px solid #e4e6e5; vertical-align: top; overflow-wrap: anywhere; }
+  thead th { background: #edf1f4; color: #344b65; font-size: .8rem; border-top: 0; }
+  th[scope="row"] { font-weight: 600; }
+  td p + p { margin-top: 6px; }
+  .table-scroll small { display: block; color: #526174; margin-top: 5px; }
+  details { padding: 18px 20px; border: 1px solid #dfe3e2; border-radius: 10px; background: white; }
+  summary { cursor: pointer; font-weight: 600; }
+  details[open] > summary { margin-bottom: 18px; }
+  .records { display: grid; gap: 14px; }
+  .record { background: #fbfaf7; }
+  .record h3 { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 5px; }
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 24px; margin: 20px 0 0; }
+  .fields div { min-width: 0; border-top: 1px solid #e0e3e1; padding-top: 10px; }
+  dt { color: #526174; font-size: .8rem; margin-bottom: 4px; }
+  dd { margin: 0; font-size: .9rem; }
+  .original-value { margin-top: 5px; color: #596777; font-size: .8rem; }
+  .activity { padding-left: 22px; }
+  .activity li { padding: 6px 0 14px 5px; }
+  .activity li p { margin: 4px 0; font-size: .9rem; }
+  .activity .meta { font-size: .8rem; }
+  .context { padding: 23px; background: #edf1f4; border-radius: 12px; }
+  .context h2 { font-size: 1.2rem; }
+  .context p { margin-top: 12px; font-size: .9rem; }
+  footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 30px; padding-top: 18px; border-top: 1px solid #dfe3e2; color: #526174; font-size: .8rem; }
+  @media (max-width: 680px) {
+    .page { padding: 18px 14px 34px; }
+    .hero { padding: 25px 22px; }
+    .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stat { padding: 15px; }
+    .question-body, .fields { grid-template-columns: minmax(0, 1fr); }
+    .question, .record { padding: 18px; }
+    section { margin-top: 30px; }
+    th, td { padding: 10px; min-width: 120px; }
+    details { padding: 15px; }
+  }
+  @media print {
+    :root, body { background: white; color: #17253b; }
+    .page { width: auto; padding: 0; }
+    .hero { background: white; color: #17253b; padding: 18px 0; border-radius: 0; }
+    .hero .description, .hero .source, .hero .source strong, .hero .meta, .brand span, .fictional { color: #344b65; }
+    .hero .source { border-color: #dfe3e2; }
+    nav, .record-link { display: none; }
+    h1 { font-size: 28pt; }
+    h2 { font-size: 18pt; break-after: avoid; }
+    section { margin-top: 24px; }
+    .stat, .question, .record, .context { box-shadow: none; border-radius: 0; }
+    .question, .record, .next-step, tr, .activity li { break-inside: avoid; }
+    .question-body { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .table-scroll { overflow: visible; }
+    table { table-layout: fixed; }
+    details::details-content { display: block; content-visibility: visible; }
+    details > :not(summary) { display: block !important; }
+    details > summary { margin-bottom: 16px; }
+    .records > .record + .record { margin-top: 14px; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="hero">
+    <div class="brand">Relay Station <span>by Eternity Flux</span></div>
+    <h1>A clear handoff.</h1>
+    <p class="description">What is ready, what still needs a decision, and who takes the next step.</p>
+    <p class="source"><strong>fictional-cohort.csv</strong> · CSV</p>
+    <p class="meta">Prepared <time datetime="2026-11-06T09:22:23.894Z">Nov 6, 2026, 9:22 AM UTC</time></p>
+    <span class="fictional">Fictional example · no real people</span>
+  </header>
+
+  <nav aria-label="Handoff sections"><a href="#overview">Overview</a><a href="#questions">Outstanding questions</a><a href="#actions">Who does what next</a><a href="#changes">What changed</a><a href="#records">All reviewed records</a></nav>
+
+  <section id="overview" aria-labelledby="overview-heading">
+    <h2 id="overview-heading">Every record accounted for</h2>
+    <div class="summary">
+      <div class="stat"><strong>12</strong><span>Source records</span></div>
+      <div class="stat"><strong>6</strong><span>Ready for handoff</span></div>
+      <div class="stat needs"><strong>6</strong><span>Still need attention</span></div>
+      <div class="stat needs"><strong>5</strong><span>Unresolved, without an owner</span></div>
+    </div>
+    <p class="reconciliation"><strong>12 imported = 6 ready + 6 unresolved.</strong> No source rows were deleted or merged.</p>
+    <p class="meta">“Ready” means the reviewed information passes the configured checks. A next action can still be open. Passing a check does not confirm that a source fact is true.</p>
+    <div class="callout"><h3>5 records still need an owner</h3><p>These unresolved questions are included below. Decide who will handle each one and what they need to do.</p></div>
+  </section>
+
+  <section id="questions" aria-labelledby="questions-heading">
+    <div class="section-head"><h2 id="questions-heading">Outstanding questions</h2><span class="count">6 records</span></div>
+    <div class="questions"><article class="question">
+      <header class="question-header"><div><h3>Casey Rowan</h3><p class="meta">Source line 4 · IR-1003</p></div><span class="count">1 question</span></header>
+      <div class="question-body"><ul class="issue-list"><li><strong>Email format needs checking</strong><span class="field-label">email</span>
+        <p>Enter a confirmed address. A format check cannot verify whether a mailbox exists.</p>
+        <p class="issue-value">Reviewed value: <span class="value">casey.rowan.example.com</span></p></li></ul><div class="next-step">
+    <div class="next-step-heading"><h4>Morgan — Program team</h4><span class="badge">Waiting</span></div>
+    <p class="value action">Confirm Casey’s email address with the program coordinator.</p>
+    <p class="meta">Due <time datetime="2026-11-10">2026-11-10</time></p>
+
+
+  </div></div>
+      <a class="record-link" href="#record-3">See this record in the full list below</a>
+    </article><article class="question">
+      <header class="question-header"><div><h3>Dana Vale</h3><p class="meta">Source line 5 · IR-1004</p></div><span class="count">2 questions</span></header>
+      <div class="question-body"><ul class="issue-list"><li><strong>Duplicate ID</strong><span class="field-label">id</span>
+        <p>2 rows share this ID after outer whitespace is removed. Confirm each source ID; neither row is deleted.</p>
+        <p class="issue-value">Reviewed value: <span class="value">IR-1004</span></p></li><li><strong>Ambiguous date</strong><span class="field-label">start_date</span>
+        <p>Day/month and month/day give different dates. Confirm the intended date with the source, then enter YYYY-MM-DD. No interpretation is selected.</p>
+        <p class="issue-value">Reviewed value: <span class="value">11/06/2026</span></p></li></ul><div class="next-step unassigned"><h4>Unassigned</h4><p>No owner or next action has been recorded for this question.</p></div></div>
+      <a class="record-link" href="#record-4">See this record in the full list below</a>
+    </article><article class="question">
+      <header class="question-header"><div><h3>Eli Hart</h3><p class="meta">Source line 6 · IR-1004</p></div><span class="count">1 question</span></header>
+      <div class="question-body"><ul class="issue-list"><li><strong>Duplicate ID</strong><span class="field-label">id</span>
+        <p>2 rows share this ID after outer whitespace is removed. Confirm each source ID; neither row is deleted.</p>
+        <p class="issue-value">Reviewed value: <span class="value">IR-1004</span></p></li></ul><div class="next-step unassigned"><h4>Unassigned</h4><p>No owner or next action has been recorded for this question.</p></div></div>
+      <a class="record-link" href="#record-5">See this record in the full list below</a>
+    </article><article class="question">
+      <header class="question-header"><div><h3>Fern Avery</h3><p class="meta">Source line 7 · ID not recorded</p></div><span class="count">1 question</span></header>
+      <div class="question-body"><ul class="issue-list"><li><strong>Missing ID</strong><span class="field-label">id</span>
+        <p>Check the source record and enter the confirmed value. No value is inferred.</p>
+        <p class="issue-value">Reviewed value: <span class="empty">Empty value</span></p></li></ul><div class="next-step unassigned"><h4>Unassigned</h4><p>No owner or next action has been recorded for this question.</p></div></div>
+      <a class="record-link" href="#record-6">See this record in the full list below</a>
+    </article><article class="question">
+      <header class="question-header"><div><h3>Haven Reed</h3><p class="meta">Source line 9 · IR-1008</p></div><span class="count">1 question</span></header>
+      <div class="question-body"><ul class="issue-list"><li><strong>Status needs confirmation</strong><span class="field-label">status</span>
+        <p>The source uses “complete”. “completed” may be the intended status; confirm it before changing.</p>
+        <p class="issue-value">Reviewed value: <span class="value">complete</span></p></li></ul><div class="next-step unassigned"><h4>Unassigned</h4><p>No owner or next action has been recorded for this question.</p></div></div>
+      <a class="record-link" href="#record-8">See this record in the full list below</a>
+    </article><article class="question">
+      <header class="question-header"><div><h3>Indigo Lane</h3><p class="meta">Source line 10 · IR-1009</p></div><span class="count">1 question</span></header>
+      <div class="question-body"><ul class="issue-list"><li><strong>Date needs checking</strong><span class="field-label">start_date</span>
+        <p>Use a real calendar date in YYYY-MM-DD format. No dates are inferred or automatically converted.</p>
+        <p class="issue-value">Reviewed value: <span class="value">2026-02-30</span></p></li></ul><div class="next-step unassigned"><h4>Unassigned</h4><p>No owner or next action has been recorded for this question.</p></div></div>
+      <a class="record-link" href="#record-9">See this record in the full list below</a>
+    </article></div>
+  </section>
+
+  <section id="actions" aria-labelledby="actions-heading">
+    <div class="section-head"><h2 id="actions-heading">Who does what next</h2><span class="count">1 open or waiting</span></div>
+    <p class="section-description">1 recorded assignment; 0 marked action complete. This includes assigned work on records that already pass the data checks.</p>
+    <div class="table-scroll" role="region" aria-label="Recorded next actions" tabindex="0"><table><caption>All recorded next actions, in source order</caption><thead><tr><th scope="col">Record</th><th scope="col">Owner and next action</th><th scope="col">Due date and action status</th><th scope="col">Information status</th></tr></thead><tbody><tr><th scope="row">Casey Rowan<small>Source line 4 · IR-1003</small></th>
+      <td><strong class="value">Morgan — Program team</strong><p class="value">Confirm Casey’s email address with the program coordinator.</p></td>
+      <td><time datetime="2026-11-10">2026-11-10</time><small>Waiting</small></td>
+      <td>Information still needs attention</td></tr></tbody></table></div>
+    <p class="section-description">An action marked complete does not fix a data issue, verify a fact, or prove that contact occurred.</p>
+  </section>
+
+  <section id="changes" aria-labelledby="changes-heading">
+    <div class="section-head"><h2 id="changes-heading">What changed</h2><span class="count">4 approved corrections</span></div>
+    <div class="table-scroll" role="region" aria-label="Approved corrections" tabindex="0"><table><caption>Current approved corrections; original values remain unchanged in the source</caption><thead><tr><th scope="col">Record and field</th><th scope="col">Original value</th><th scope="col">Approved value</th></tr></thead><tbody><tr><th scope="row">Bennett, Sol<small>Source line 3 · status</small></th>
+      <td><span class="value"> Active </span></td><td><span class="value">active</span></td></tr><tr><th scope="row">Gray Ellis<small>Source line 8 · name</small></th>
+      <td><span class="value">  Gray Ellis  </span></td><td><span class="value">Gray Ellis</span></td></tr><tr><th scope="row">Gray Ellis<small>Source line 8 · email</small></th>
+      <td><span class="value">gray.ellis@EXAMPLE.COM</span></td><td><span class="value">gray.ellis@example.com</span></td></tr><tr><th scope="row">Gray Ellis<small>Source line 8 · status</small></th>
+      <td><span class="value">on hold</span></td><td><span class="value">on_hold</span></td></tr></tbody></table></div>
+    <p class="section-description">Checks used: Participant intake. Every correction in this report was explicitly approved in the workspace.</p>
+  </section>
+
+  <section id="records" aria-labelledby="records-heading">
+    <div class="section-head"><h2 id="records-heading">All reviewed records</h2><span class="count">12 retained</span></div>
+    <details><summary>Open the complete list, including unresolved records</summary><div class="records"><article class="record" id="record-1">
+      <h3>Amara Ellis<span class="badge">Passes current checks</span></h3>
+      <p class="meta">Source line 2 · IR-1001 · Record 1 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1001</span></dd></div><div><dt>name</dt><dd><span class="value">Amara Ellis</span></dd></div><div><dt>email</dt><dd><span class="value">amara.ellis@example.com</span></dd></div><div><dt>status</dt><dd><span class="value">active</span></dd></div><div><dt>start_date</dt><dd><span class="value">2026-11-02</span></dd></div><div><dt>notes</dt><dd><span class="value">Orientation confirmed</span></dd></div></dl>
+    </article><article class="record" id="record-2">
+      <h3>Bennett, Sol<span class="badge">Passes current checks</span></h3>
+      <p class="meta">Source line 3 · IR-1002 · Record 2 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1002</span></dd></div><div><dt>name</dt><dd><span class="value">Bennett, Sol</span></dd></div><div><dt>email</dt><dd><span class="value">sol.bennett@example.com</span></dd></div><div><dt>status</dt><dd><span class="value">active</span><p class="original-value">Original: <span class="value"> Active </span></p></dd></div><div><dt>start_date</dt><dd><span class="value">2026-11-03</span></dd></div><div><dt>notes</dt><dd><span class="value">Prefers a morning session, if available</span></dd></div></dl>
+    </article><article class="record" id="record-3">
+      <h3>Casey Rowan<span class="badge">Needs attention</span></h3>
+      <p class="meta">Source line 4 · IR-1003 · Record 3 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1003</span></dd></div><div><dt>name</dt><dd><span class="value">Casey Rowan</span></dd></div><div><dt>email</dt><dd><span class="value">casey.rowan.example.com</span></dd></div><div><dt>status</dt><dd><span class="value">pending</span></dd></div><div><dt>start_date</dt><dd><span class="value">2026-11-04</span></dd></div><div><dt>notes</dt><dd><span class="value">Confirm contact information</span></dd></div></dl>
+    </article><article class="record" id="record-4">
+      <h3>Dana Vale<span class="badge">Needs attention</span></h3>
+      <p class="meta">Source line 5 · IR-1004 · Record 4 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1004</span></dd></div><div><dt>name</dt><dd><span class="value">Dana Vale</span></dd></div><div><dt>email</dt><dd><span class="value">dana.vale@example.com</span></dd></div><div><dt>status</dt><dd><span class="value">completed</span></dd></div><div><dt>start_date</dt><dd><span class="value">11/06/2026</span></dd></div><div><dt>notes</dt><dd><span class="value">Ask which date convention was used</span></dd></div></dl>
+    </article><article class="record" id="record-5">
+      <h3>Eli Hart<span class="badge">Needs attention</span></h3>
+      <p class="meta">Source line 6 · IR-1004 · Record 5 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1004</span></dd></div><div><dt>name</dt><dd><span class="value">Eli Hart</span></dd></div><div><dt>email</dt><dd><span class="value">eli.hart@example.com</span></dd></div><div><dt>status</dt><dd><span class="value">active</span></dd></div><div><dt>start_date</dt><dd><span class="value">2026-11-05</span></dd></div><div><dt>notes</dt><dd><span class="value">Check the source ID against the intake record</span></dd></div></dl>
+    </article><article class="record" id="record-6">
+      <h3>Fern Avery<span class="badge">Needs attention</span></h3>
+      <p class="meta">Source line 7 · ID not recorded · Record 6 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="empty">Empty value</span></dd></div><div><dt>name</dt><dd><span class="value">Fern Avery</span></dd></div><div><dt>email</dt><dd><span class="value">fern.avery@example.com</span></dd></div><div><dt>status</dt><dd><span class="value">pending</span></dd></div><div><dt>start_date</dt><dd><span class="value">2026-11-06</span></dd></div><div><dt>notes</dt><dd><span class="value">An ID was not recorded</span></dd></div></dl>
+    </article><article class="record" id="record-7">
+      <h3>Gray Ellis<span class="badge">Passes current checks</span></h3>
+      <p class="meta">Source line 8 · IR-1007 · Record 7 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1007</span></dd></div><div><dt>name</dt><dd><span class="value">Gray Ellis</span><p class="original-value">Original: <span class="value">  Gray Ellis  </span></p></dd></div><div><dt>email</dt><dd><span class="value">gray.ellis@example.com</span><p class="original-value">Original: <span class="value">gray.ellis@EXAMPLE.COM</span></p></dd></div><div><dt>status</dt><dd><span class="value">on_hold</span><p class="original-value">Original: <span class="value">on hold</span></p></dd></div><div><dt>start_date</dt><dd><span class="value">2026-11-09</span></dd></div><div><dt>notes</dt><dd><span class="value">Awaiting a scheduling update</span></dd></div></dl>
+    </article><article class="record" id="record-8">
+      <h3>Haven Reed<span class="badge">Needs attention</span></h3>
+      <p class="meta">Source line 9 · IR-1008 · Record 8 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1008</span></dd></div><div><dt>name</dt><dd><span class="value">Haven Reed</span></dd></div><div><dt>email</dt><dd><span class="value">haven.reed@example.com</span></dd></div><div><dt>status</dt><dd><span class="value">complete</span></dd></div><div><dt>start_date</dt><dd><span class="value">2026-11-10</span></dd></div><div><dt>notes</dt><dd><span class="value">Source says &quot;complete&quot;; confirm the intended status</span></dd></div></dl>
+    </article><article class="record" id="record-9">
+      <h3>Indigo Lane<span class="badge">Needs attention</span></h3>
+      <p class="meta">Source line 10 · IR-1009 · Record 9 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1009</span></dd></div><div><dt>name</dt><dd><span class="value">Indigo Lane</span></dd></div><div><dt>email</dt><dd><span class="value">indigo.lane@example.com</span></dd></div><div><dt>status</dt><dd><span class="value">active</span></dd></div><div><dt>start_date</dt><dd><span class="value">2026-02-30</span></dd></div><div><dt>notes</dt><dd><span class="value">The calendar date needs checking</span></dd></div></dl>
+    </article><article class="record" id="record-10">
+      <h3>Jordan Moss<span class="badge">Passes current checks</span></h3>
+      <p class="meta">Source line 11 · IR-1010 · Record 10 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1010</span></dd></div><div><dt>name</dt><dd><span class="value">Jordan Moss</span></dd></div><div><dt>email</dt><dd><span class="value">jordan.moss@example.com</span></dd></div><div><dt>status</dt><dd><span class="value">withdrawn</span></dd></div><div><dt>start_date</dt><dd><span class="value">2026-11-11</span></dd></div><div><dt>notes</dt><dd><span class="value">A fictional note with
+two lines; both are preserved</span></dd></div></dl>
+    </article><article class="record" id="record-11">
+      <h3>Kai River<span class="badge">Passes current checks</span></h3>
+      <p class="meta">Source line 13 · IR-1011 · Record 11 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1011</span></dd></div><div><dt>name</dt><dd><span class="value">Kai River</span></dd></div><div><dt>email</dt><dd><span class="value">kai.river@example.com</span></dd></div><div><dt>status</dt><dd><span class="value">pending</span></dd></div><div><dt>start_date</dt><dd><span class="value">2026-11-12</span></dd></div><div><dt>notes</dt><dd><span class="value">Ready for the next step</span></dd></div></dl>
+    </article><article class="record" id="record-12">
+      <h3>Linden Ash<span class="badge">Passes current checks</span></h3>
+      <p class="meta">Source line 14 · IR-1012 · Record 12 of 12</p>
+      <dl class="fields"><div><dt>id</dt><dd><span class="value">IR-1012</span></dd></div><div><dt>name</dt><dd><span class="value">Linden Ash</span></dd></div><div><dt>email</dt><dd><span class="value">linden.ash@example.com</span></dd></div><div><dt>status</dt><dd><span class="value">active</span></dd></div><div><dt>start_date</dt><dd><span class="value">2026-11-13</span></dd></div><div><dt>notes</dt><dd><span class="value">All examples are fictional</span></dd></div></dl>
+    </article></div></details>
+    <p class="section-description">Approved values are shown; changed fields also show their original values. Empty, missing, extra, and ambiguous source values remain visible. Record numbers distinguish rows even when source IDs repeat.</p>
+  </section>
+
+  <section aria-label="Recorded activity"><details><summary>Recorded activity · 5 entries</summary><ol class="activity"><li><strong>File opened</strong><p class="value">Opened the fictional example with its known column matches. All 12 source records retained.</p>
+      <p class="meta"><time datetime="2026-11-06T09:22:23.032Z">Nov 6, 2026, 9:22 AM UTC</time> · Label: You</p></li><li><strong>Next action recorded</strong><p class="value">Assigned a next action and owner.</p>
+      <p class="meta"><time datetime="2026-11-06T09:22:23.290Z">Nov 6, 2026, 9:22 AM UTC</time> · Label: You · Source line 4</p></li><li><strong>Correction proposed</strong><p class="value">Staged 4 formatting corrections for human review.</p>
+      <p class="meta"><time datetime="2026-11-06T09:22:23.647Z">Nov 6, 2026, 9:22 AM UTC</time> · Label: You</p></li><li><strong>Correction approved</strong><p class="value">Approved 4 corrections after review.</p>
+      <p class="meta"><time datetime="2026-11-06T09:22:23.727Z">Nov 6, 2026, 9:22 AM UTC</time> · Label: You</p></li><li><strong>Export prepared</strong><p class="value">Prepared a readable handoff with decisions, unresolved questions, next owners, and every reviewed record.</p>
+      <p class="meta"><time datetime="2026-11-06T09:22:23.893Z">Nov 6, 2026, 9:22 AM UTC</time> · Label: You</p></li></ol></details></section>
+
+  <section class="context" aria-labelledby="context-heading">
+    <h2 id="context-heading">For the person receiving this handoff</h2>
+    <p>This is a read-only snapshot. It opens without Relay Station and can be printed from your browser. It does not update when the workspace changes.</p>
+    <p>The complete handoff ZIP also contains the exact original file, reviewed data, unresolved records, change log, assignments, activity, and a session backup. This HTML report does not embed those files.</p>
+
+    <p>Owners and activity actors are local labels. Activity records workspace actions; it is not an independently verified audit trail. No message is sent by preparing this handoff.</p>
+    <p>This report contains source information and follow-up notes. Share it with the intended recipient.</p>
+  </section>
+  <footer><span>Relay Station by Eternity Flux</span><span>Preserve the context. Make the next step clear.</span></footer>
+</main>
+</body>
+</html>

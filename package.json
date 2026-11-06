@@ -1,8 +1,8 @@
 {
-  "name": "intake-repair-station",
-  "version": "0.2.0",
+  "name": "relay-station",
+  "version": "0.3.0",
   "private": true,
-  "description": "An open-source local data review workspace with reusable recipes, reviewed corrections, optional AI, and complete handoffs.",
+  "description": "Relay Station by Eternity Flux: an open-source handoff desk for clear decisions, owners, and next steps.",
   "type": "module",
   "license": "MIT",
   "author": "Mohsin Siddiqi",

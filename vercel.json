@@ -5,11 +5,11 @@
   "outputDirectory": "dist",
   "headers": [
     {
-      "source": "/intake-repair-station.html",
+      "source": "/relay-station.html",
       "headers": [
         {
           "key": "Content-Disposition",
-          "value": "attachment; filename=\"intake-repair-station.html\""
+          "value": "attachment; filename=\"relay-station.html\""
         }
       ]
     }

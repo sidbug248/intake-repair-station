@@ -3,7 +3,11 @@ import { createCompanion } from '../../server/companion.mjs';
 import { providersFromEnv } from '../../server/providers.mjs';
 
 const OWNER_TOKEN = 'browser-test-access-token-32-characters-minimum';
-const workflow = (page, name) => page.getByRole('navigation', { name: 'Workflow', exact: true }).getByRole('button', { name: new RegExp('^' + name + '(?:\\s|$)') });
+async function advancedTool(page, name) {
+  const advanced = page.locator('details.ir-advanced-nav');
+  if (await advanced.getAttribute('open') === null) await advanced.locator('summary').click();
+  await page.getByRole('navigation', { name: 'Advanced tools', exact: true }).getByRole('button', { name, exact: true }).click();
+}
 
 test('optional services save explicitly, keep credentials out of backups, and reject stale AI suggestions', async ({ page }) => {
   const requests = [];
@@ -25,8 +29,8 @@ test('optional services save explicitly, keep credentials out of backups, and re
   try {
     await page.goto('/');
     await page.getByRole('button', { name: 'Try fictional example', exact: true }).first().click();
-    await page.getByRole('button', { name: 'Open repair queue', exact: true }).click();
-    await workflow(page, 'Saved workspaces').click();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('What needs a decision?');
+    await advancedTool(page, 'Saved workspaces');
     await page.getByLabel('Companion address', { exact: true }).fill(`http://127.0.0.1:${app.server.address().port}`);
     await page.getByLabel('Companion access token', { exact: true }).fill(OWNER_TOKEN);
     await page.getByRole('button', { name: 'Connect locally', exact: true }).click();
@@ -43,7 +47,7 @@ test('optional services save explicitly, keep credentials out of backups, and re
     expect(JSON.stringify(stored.session)).not.toContain('never-in-browser-provider-key');
     expect(await page.evaluate(() => JSON.stringify({ ...localStorage }))).not.toContain(OWNER_TOKEN);
 
-    await workflow(page, 'AI assistance').click();
+    await advancedTool(page, 'AI assistance');
     await page.getByLabel('What would help?').selectOption('handoff');
     const consent = page.getByRole('checkbox', { name: /^Use this displayed data/ });
     await consent.check();

@@ -1,37 +1,80 @@
-# Intake Repair Station
+# Relay Station
 
-**Turn a messy operational list into a reviewed handoff—with the original intact and the unfinished work assigned.**
+**By Eternity Flux · Find what needs attention. Record the decision. Make the next step clear.**
 
-Intake Repair Station is a free, MIT-licensed workspace for people who inherit participant lists, enrollment exports, support requests, and other small operational files. It connects three questions: **Who needs attention? What changed? Who owns the next action?**
+Someone sends you a list of people, requests, or applications. Some information is missing, some looks wrong, and some needs a person to make a decision. **Relay Station** gives you a place to review the list, keep track of corrections, and hand unfinished work to a named owner.
 
-Import a CSV, TSV, or Excel worksheet. Apply a reusable review recipe, inspect the problems, approve corrections, and export both usable records and unresolved work. The core runs in your browser without an account, API key, or server. Optional local services add saved workspaces, scoped access, notifications, and AI using your own provider or local model.
+It is a free, MIT-licensed operational handoff desk. Open a small CSV, TSV, or Excel worksheet; review the issues; approve confirmed corrections; and prepare a readable handoff with the original file intact. The core works in your browser without an account, an API key, or a server.
 
-**v0.2.0 distribution: source and local/offline builds. The public hosted demo is paused.**
+**v0.3.0 · Repository, local development, and offline download. The public hosted site remains paused.**
 
-**[Download the portable HTML app](https://github.com/sidbug248/intake-repair-station/raw/refs/heads/main/release/intake-repair-station.html)** · [Read the guide](docs/PRODUCT_GUIDE.md) · [Explore the architecture](docs/ARCHITECTURE.md)
+**[Download Relay Station](https://github.com/sidbug248/relay-station/raw/refs/heads/main/release/relay-station.html)** · [Step-by-step guide](docs/PRODUCT_GUIDE.md) · [Technical architecture](docs/ARCHITECTURE.md)
 
-![The local repair queue with fictional cohort records, data issues, and an assigned next action.](docs/images/workspace.png)
+![Relay Station's Needs attention view with fictional records, understandable issues, and separate next actions.](docs/images/workspace.png)
 
-Read the [three-level product guide](docs/PRODUCT_GUIDE.md) for casual, operational, and technical explanations.
+## Start with a real-world question
 
-See the [version comparison preview](docs/images/version-comparison.png) for the new file-to-file review workflow.
+Imagine a training partner sends you twelve participant records. Two people share an ID, an email address is incomplete, and a start date could mean two different days. You need to prepare a useful handoff without losing anyone or guessing the answers.
 
-## What you can do
+Relay Station helps you answer:
 
-| Capability | Useful behavior |
+| Question | Where to work |
 | --- | --- |
-| **Review CSV, TSV, and XLSX** | Confirm column meanings; choose a worksheet explicitly; retain the original file. |
-| **Save import recipes** | Reuse mappings, required fields, custom statuses, and declarative rules for other columns. |
-| **Keep corrections deliberate** | Compare before and after; approve or undo proposals before the reviewed handoff. |
-| **Assign unfinished work** | Record an owner, next action, due date, note, and follow-up status independently of data validity. |
-| **Compare successive files** | See additions, removals, changes, and ambiguous identities without merging records. |
-| **Prepare a complete handoff** | Export reviewed rows, exceptions, changes, assignments, activity, and a portable session. |
-| **Use optional AI** | Ask for column matches, validation-rule drafts, grounded handoff summaries, issue explanations, next-action drafts, and advisory duplicate comparisons. |
-| **Save through a local companion** | Use SQLite workspaces, revision checks, scoped viewer/editor tokens, service history, and a notification inbox. |
+| **What needs a decision?** | **Needs attention** explains the issues and lets you inspect a record or assign follow-up. |
+| **What changed?** | **What changed** compares original and proposed values, records approvals, and gives access to activity. |
+| **Who does what next?** | **Handoff** brings reviewed data and outstanding actions together for the next person. |
 
-The app never silently drops a difficult row, merges identities, guesses an ambiguous date, or treats a completed follow-up as proof that the data is fixed.
+The interface starts with these jobs. Rules, file comparison, AI configuration, and optional saved workspaces are available under **Advanced tools** when you need them.
 
-## Run it locally
+## Try it in a few minutes
+
+Download the [portable HTML app](release/relay-station.html) and open the saved file in a modern browser. If GitHub displays its source, choose **Download raw file** first. Opening a repository file page does not run the application.
+
+1. On **Start**, choose the fictional example. It opens **Needs attention** directly; you do not need to configure its columns.
+2. Open Dana Vale's record. The duplicate ID and ambiguous start date need confirmation from the source.
+3. Record an owner and a next action, such as “Confirm Dana's source ID and intended start date.” Saving this assignment records responsibility; it does not send a message or fix the source value.
+4. Preview the supported formatting suggestions. Review their original and proposed values in **What changed**, then approve or undo them.
+5. Open **Handoff**. Download the readable HTML report for the next person, or the complete ZIP when they also need the data and session backup.
+
+The example contains fictional people and addresses. The [product guide](docs/PRODUCT_GUIDE.md) explains the same workflow in casual, operational, and technical language. You can also [preview the Start screen](docs/images/first-use.png).
+
+### Use your own file
+
+Open a CSV, TSV, or `.xlsx` file from **Start**. Confirm the suggested column meanings; choose a worksheet if the workbook has several. The default checks cover ID, name, email, status, and start date. **Advanced tools → Import recipes** lets you change required roles, statuses, and rules for other columns.
+
+Every admitted source row remains represented. Relay Station does not silently delete records, merge identities, infer ambiguous dates, or treat a completed task as proof that the data is correct.
+
+## What travels with the handoff
+
+The readable **`handoff.html`** report answers what came in, what changed, what remains unresolved, and who owns the next action. It opens in a browser without Relay Station and requires no AI generation. The same report is included in the complete ZIP.
+
+See the [readable handoff preview](docs/images/handoff.png), or download the [fictional example report](examples/fictional-handoff.html) and open it in a browser.
+
+| File in the ZIP | Purpose |
+| --- | --- |
+| `handoff.html` | A readable review summary and next-action handoff. Start here. |
+| `original.csv`, `original.tsv`, or `original.xlsx` | The original input, preserved in its original format. |
+| `working-source.csv` | The tabular representation of a TSV or selected XLSX worksheet; included for those formats. |
+| `clean.csv` | Records passing the active checks after approved corrections. |
+| `exceptions.csv` | Unresolved records, issues, and original/reviewed values. |
+| `all-reviewed-rows.csv` | Every source row, in order, with approved corrections. |
+| `change-log.csv` | Approved differences from the source. |
+| `assignments.csv` | Owners, next actions, due dates, notes, and follow-up statuses. |
+| `activity.csv` | Recorded browser-workspace actions. |
+| `session.json` | A portable review backup, including the source, checks, and review decisions. |
+| `README.txt` | An explanation of the package and its limits. |
+
+Pending corrections block reviewed handoffs. The exact original and session backup remain available during review. Ready records plus unresolved records account for every imported row.
+
+**Ready means “passes the configured checks.”** It does not establish identity, eligibility, source accuracy, or email delivery. An assigned action and its completion status are separate from data validity. See [checks and export details](docs/CSV_FORMAT.md).
+
+## Keep working later
+
+Work lives in the current tab by default. **Save session backup** downloads a JSON file that can reopen the review, including assignments and decisions. **Remember on this device** is optional and saves in the current browser profile; it is not an online backup.
+
+Version comparison, reusable checks, and additional file downloads remain available without a service account. The table view is still available when you want to inspect several records together. Optional local services can add named saved workspaces and AI assistance.
+
+## Run from source
 
 Install **Node.js 24**, then run these commands from the project folder:
 
@@ -42,88 +85,48 @@ npm run dev
 
 Open the local URL printed by Vite. No environment file or service account is needed for the core workflow.
 
-### A useful first run
-
-Choose **Guided walkthrough** or **Try fictional example**. The example uses fictional people and email addresses.
-
-1. Confirm the column mapping and open the repair queue.
-2. Inspect a problem and stage a supported formatting correction or a value you have confirmed.
-3. Give an unresolved record an owner and next action.
-4. Compare proposed changes and approve or undo them.
-5. Prepare the complete handoff ZIP and keep its session backup.
-
-The default recipe checks ID, name, email, status, and start date. **Import recipes** lets you change required roles and statuses or add rules for other source columns. See [formats and recipes](docs/FORMATS_AND_RECIPES.md).
-
-### Download or build an offline copy
-
-The [portable HTML file](release/intake-repair-station.html) is included in this repository. Download it to your computer and open the saved `.html` file in a modern browser. If GitHub displays the source, use **Download raw file**. Opening the repository file view does not run the application.
-
-To build that file from source:
+Build the production and portable offline versions with:
 
 ```sh
 npm run build
 ```
 
-Open `release/intake-repair-station.html` in a modern browser. The single file contains the core application, its styles, and its icon. It works without a local server or network connection after the build. It does not include your current records; use **Save session backup** to carry those between copies.
+The build produces `dist/` and `release/relay-station.html`. The portable file includes the frontend, styles, icon, and applicable notices. It works without a local server or network after the build. It does not include your current records; move those with a session backup.
 
-The same build also produces `dist/` for local preview with `npm run preview`. Browser persistence for directly opened HTML files varies; a downloaded JSON backup is the portable way to resume a review.
+Use `npm run preview` for a local preview of `dist/`. Browser persistence for directly opened HTML files varies, so a downloaded session backup is the portable way to resume work.
 
-### Optional local services and AI
+## Optional local services and AI
 
-To start the local app and companion together:
+The core review and handoff remain complete without these services. To start the local frontend and companion together:
 
 ```sh
 npm run local
 ```
 
-Or keep `npm run dev` running and start only the companion in a second terminal:
+Alternatively, keep `npm run dev` running and start the companion in another terminal with `npm run companion`. It listens on `http://127.0.0.1:4317`. Enter that address and the token identified by its startup message in **Advanced tools → Saved workspaces**. Connecting alone does not save a workspace or call an AI provider.
 
-```sh
-npm run companion
-```
+The companion provides explicit SQLite saves, revision checks, scoped viewer/editor tokens, service notifications, and an optional confirmed handoff webhook. It is a loopback service for the local computer. Public signup and cloud synchronization are not enabled.
 
-The companion listens on `http://127.0.0.1:4317`. Its startup message identifies the private local access-token file. Enter the address and token in **Local services**. Connecting alone does not save a workspace or call an AI provider.
+For AI, copy `.env.example` to `.env` and configure a supported provider/model. OpenAI, Anthropic, OpenAI-compatible services, and local Ollama have adapters. Credentials stay in the companion environment; never put them in frontend `VITE_` variables.
 
-For AI, copy `.env.example` to `.env` and configure a supported provider/model. Adapters are included for OpenAI, Anthropic, an OpenAI-compatible endpoint, and local Ollama. Keep credentials in the companion environment; never use frontend `VITE_` variables for them.
+AI can suggest column matches and rules, explain issues, draft next actions, summarize supplied handoff facts, or assess selected possible duplicates. You inspect the scope and review the response. AI cannot approve corrections, merge records, send messages, or change access. **Remote BYOK sends the selected information to that provider.** A properly configured local Ollama runtime can keep inference local.
 
-**Remote BYOK still sends the selected scope to that provider.** Local Ollama can provide local inference when its cloud features are disabled. All AI suggestions remain reviewable; none can approve changes, merge records, send messages, or change access.
-
-The companion also provides explicit SQLite saves, stale-version protection, workspace-scoped access tokens, a service notification inbox, and an optional handoff webhook. It is a loopback service, not public signup or cloud synchronization. Full setup and boundaries: [Optional local services and AI](docs/LOCAL_SERVICES.md).
-
-## What a handoff contains
-
-| File | Purpose |
-| --- | --- |
-| `original.csv`, `original.tsv`, or `original.xlsx` | The original input, preserved in its original format. |
-| `working-source.csv` | The tabular representation of a TSV or selected XLSX worksheet; included for those formats. |
-| `clean.csv` | Records passing the active recipe after approved corrections. |
-| `exceptions.csv` | Unresolved records, issues, and original/reviewed values. |
-| `all-reviewed-rows.csv` | Every source row, in order, with approved corrections. |
-| `change-log.csv` | Approved differences from the source. |
-| `assignments.csv` | Owners, next actions, due dates, notes, and follow-up statuses. |
-| `activity.csv` | Recorded browser-workspace actions. |
-| `session.json` | A portable review backup, including recipe and source. |
-| `README.txt` | How to interpret the package. |
-
-Pending corrections block reviewed exports. The original and session backup remain available while work is unfinished. Ready rows plus exception rows account for every imported record.
-
-“Ready” means the active checks pass. It does not establish identity, eligibility, source accuracy, or email deliverability. [CSV checks and exports](docs/CSV_FORMAT.md)
+See [local services and AI](docs/LOCAL_SERVICES.md) for setup, compatibility identifiers, limits, and data boundaries.
 
 ## Data boundaries and limits
 
-- **Core mode:** files stay in the browser; no telemetry, automatic uploads, accounts, or AI calls.
-- **Browser saving:** optional and specific to that browser profile. Backups are ordinary unencrypted files.
-- **Companion mode:** only an explicit save sends a workspace to the local SQLite service. Tokens are held in browser memory; provider keys remain server-side.
-- **AI or connector use:** inspect the data scope and destination before explicitly sending it. These optional actions may contact a remote service.
-- **Input limits:** 1,000,000 bytes, 2,000 data rows, and 30 columns. Limits fail clearly rather than truncate data.
+- **Core:** no accounts, telemetry, automatic uploads, remote fonts, or automatic AI calls.
+- **Input limits:** 1,000,000 bytes, 2,000 data rows, and 30 columns. Unsupported or oversized inputs fail explicitly rather than truncate data.
+- **Preserved source:** the entire original workbook remains available even when only one worksheet is reviewed.
+- **Excel behavior:** formulas are not recalculated, numeric display formats are not interpreted, and unsupported structures such as merged cells require source preparation.
+- **Saved data:** browser storage, SQLite files, downloaded reports, and session backups are not independently encrypted vaults.
+- **Coordination:** entered owners are labels; local token access does not verify a person's identity. Activity is a useful operational record, not tamper-proof evidence.
 
-XLSX imports do not execute formulas or interpret numeric display formats. Cached formula results can be stale, Excel serial dates need confirmation, and merged cells must be unmerged before import. The full workbook remains in the original download. See the complete [format contract](docs/FORMATS_AND_RECIPES.md).
-
-Entered owners and local activity are coordination aids. Companion access tokens identify an authorized credential, not a verified person. Neither history is a tamper-proof audit system. Google/email signup, cross-device cloud sync, and real-time shared editing are not part of this release.
+The release does not provide Google/email signup, cross-device cloud sync, real-time shared editing, automatic outreach, or automatic identity merging. See [formats and recipes](docs/FORMATS_AND_RECIPES.md) and [security](SECURITY.md).
 
 ## Engineering and verification
 
-The frontend is React/Vite. Parsing, validation, review state, recipes, comparison, and AI schemas are independent JavaScript modules. The optional companion uses Node.js built-in HTTP, SQLite, and crypto modules; it is not bundled into the offline app.
+React/Vite provides the interface. Framework-independent JavaScript modules handle parsing, rules, corrections, comparison, handoff rendering, and AI schemas. The optional companion uses Node.js built-in HTTP, SQLite, and crypto modules; it is not bundled into the offline app.
 
 ```sh
 npm test
@@ -132,14 +135,14 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-The unit/integration suite covers source preservation, review gates, parser limits, hostile workbook inputs, comparison ambiguity, AI schemas, secret-safe provider failures, workspace isolation, stale saves, revocation, and connector confirmation. Provider responses are mocked; passing these tests is not a live-provider certification. Browser tests exercise the actual import-to-export workflow. See [validation](docs/VALIDATION.md) and [architecture](docs/ARCHITECTURE.md).
+Tests protect source preservation, review gates, import limits, session compatibility, assignment independence, and the optional service boundaries. Provider responses are mocked; these checks do not certify a live model or a user's provider account. See the observed [validation record](docs/VALIDATION.md) and [architecture](docs/ARCHITECTURE.md).
 
 ## Contribute
 
-Useful contributions include clearer validation messages, supported format edge cases, accessibility improvements, and carefully bounded workflow features. Read [Contributing](CONTRIBUTING.md) and [Security](SECURITY.md). The [examples](examples/) directory contains fictional data for development.
+Useful contributions make a concrete job easier: clearer issue explanations, reliable format handling, accessible interaction, and handoffs a recipient can understand. Read [Contributing](CONTRIBUTING.md). The [examples](examples/) directory contains fictional data for development.
 
 ## License and author
 
-Available under the [MIT License](LICENSE). Dependencies retain their own licenses; see [Third-party notices](THIRD_PARTY_NOTICES.md). Production and portable builds include the applicable notices.
+Created by [Mohsin Siddiqi](https://mohsinsiddiqi.nyc). **Relay Station by Eternity Flux** is available under the [MIT License](LICENSE). The copyright holder remains Mohsin Siddiqi, trading as Eternity Flux Technologies. Renaming the product does not change that license.
 
-Created by [Mohsin Siddiqi](https://mohsinsiddiqi.nyc). The Eternity Flux identity assets and editable Figma source are documented in [Branding](docs/BRANDING.md).
+Dependencies retain their own licenses; see [Third-party notices](THIRD_PARTY_NOTICES.md). The approved EF ouroboros, included artwork, and editable Figma source are documented in [Branding](docs/BRANDING.md).

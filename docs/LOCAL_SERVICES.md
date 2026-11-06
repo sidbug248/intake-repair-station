@@ -1,6 +1,6 @@
-# Optional local services and AI
+# Relay Station: optional local services and AI
 
-The core application remains complete without an account, an API key, or a running server. Imports, review, assignments, exports, and local session backups continue in the browser. Nothing connects to this companion automatically.
+Relay Station's core remains complete without an account, an API key, or a running server. Imports, review, assignments, readable handoffs, exports, and local session backups continue in the browser. Nothing connects to this companion automatically. Open **Advanced tools → Saved workspaces** for the service connection and **Advanced tools → AI assistance** for AI tasks.
 
 The companion adds explicit saved workspaces, version checks, scoped collaborator access, a notification inbox, optional AI, and an optional handoff webhook. It runs on the user's computer using Node.js 24 and SQLite. No Supabase account is required for these local features.
 
@@ -9,7 +9,7 @@ The companion adds explicit saved workspaces, version checks, scoped collaborato
 1. Install the project dependencies with `npm ci` and start the application with `npm run dev`.
 2. To configure AI or a connector, copy `.env.example` to `.env` and fill only the services you intend to use. Never use a `VITE_` prefix for credentials: Vite exposes such values to frontend code.
 3. In another terminal, run `npm run companion`.
-4. Open the app's optional services connection and enter `http://127.0.0.1:4317` plus the companion access token. The startup message tells you which private local file contains that token. If you configured `INTAKE_ACCESS_TOKEN`, use that value instead.
+4. Open **Advanced tools → Saved workspaces** and enter `http://127.0.0.1:4317` plus the companion access token. The startup message tells you which private local file contains that token. If you configured `INTAKE_ACCESS_TOKEN`, use that value instead.
 5. Choose a provider and task, or explicitly save a workspace. Connecting alone does not save the current dataset or send an AI request.
 
 After installing dependencies and configuring any optional services, `npm run local` starts the app and companion together in one terminal. It uses the same local settings and shuts down both processes when stopped.
@@ -21,6 +21,8 @@ For the downloaded HTML opened directly with `file://`, set `INTAKE_ALLOW_FILE_O
 ### Storage and access
 
 The default private data folder is `~/.intake-repair-station`, outside the repository. It contains `workspaces.sqlite`, SQLite journal files, and the generated `access-token`. `INTAKE_DATA_DIR` can select a different private folder. The startup script requests owner-only filesystem permissions where supported by the OS. The SQLite contents are not independently encrypted; the machine's user account and disk protection remain relevant.
+
+The earlier folder name and `INTAKE_` environment variables are retained for compatibility with existing installations. They are configuration identifiers, not the visible product name. Renaming the app does not require moving a database, replacing credentials, or editing old session files.
 
 The browser client holds its connection token in memory. Provider keys and webhook secrets stay in the companion environment. None are added to session backups or CSV exports. Workspace saves rebuild a validated application snapshot instead of persisting arbitrary request fields.
 

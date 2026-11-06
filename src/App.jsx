@@ -1,2 +1,2 @@
-import IntakeRepair from '@/pages/IntakeRepair';
-export default function App() { return <IntakeRepair />; }
+import RelayStation from '@/pages/RelayStation';
+export default function App() { return <RelayStation />; }

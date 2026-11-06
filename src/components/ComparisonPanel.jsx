@@ -36,7 +36,7 @@ export default function ComparisonPanel({ dataset, changes, onImport }) {
   function download() {
     const url = URL.createObjectURL(new Blob([comparisonCSV(result)], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = 'import-comparison.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  if (!dataset) return <section className="ir-empty-state ir-panel"><GitCompare size={35}/><h2>Start with the current version.</h2><p>Import the first file into your workspace, then bring its next version here.</p><button className="ir-button primary" onClick={onImport}>Bring in data</button></section>;
+  if (!dataset) return <section className="ir-empty-state ir-panel"><GitCompare size={35}/><h2>Start with the current version.</h2><p>Open the first file in your workspace, then bring its next version here.</p><button className="ir-button primary" onClick={onImport}>Open a file</button></section>;
   return <>
     <section className="ir-panel ir-tool-panel">
       <h2>What changed between files?</h2><p>Compare accepted values in <strong>{dataset.filename}</strong> with another import. This creates a report; it never merges people or transfers corrections.</p>

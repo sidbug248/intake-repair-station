@@ -1,6 +1,6 @@
 # Third-party notices
 
-Intake Repair Station is licensed under the MIT license in `LICENSE`.
+Relay Station by Eternity Flux is licensed under the MIT license in `LICENSE`.
 The following third-party libraries are included in the browser application.
 Their original notices are reproduced below. Build and test dependencies retain
 their own licenses in their distributed packages.

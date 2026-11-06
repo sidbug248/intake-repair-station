@@ -25,9 +25,12 @@ import ComparisonPanel from '@/components/ComparisonPanel.jsx';
 import GuidePanel from '@/components/GuidePanel.jsx';
 import AssistantPanel from '@/components/AssistantPanel.jsx';
 import ServicesPanel from '@/components/ServicesPanel.jsx';
-import './intake-repair.css';
+import { createHandoffReport } from '@/lib/handoff.mjs';
+import './relay-station.css';
 import './workspace-tools.css';
+import './relay-experience.css';
 
+// Persisted keys remain stable so earlier workspaces survive the product rename.
 const STORAGE_KEY = 'intake-repair-station-session-v1';
 const LEGACY_STORAGE_KEY = 'ef-intake-repair-session-v1';
 const PAGE_SIZE = 25;
@@ -43,10 +46,10 @@ const EVENT_LABELS = {
   recipe: 'Review rules changed', ai: 'AI suggestion used',
 };
 const VIEWS = [
-  { id: 'intake', label: 'Bring in data', icon: FileInput, title: 'A clear start for every intake.', description: 'Bring a CSV, review the exceptions, and give the next person a useful handoff.' },
-  { id: 'queue', label: 'Repair queue', icon: ListFilter, title: 'Put attention where it helps.', description: 'See what needs review, who owns the next action, and what is still waiting.' },
-  { id: 'review', label: 'Review changes', icon: GitCompare, title: 'Make each correction intentional.', description: 'Compare proposed values with the source. Approve only the changes you mean to make.' },
-  { id: 'export', label: 'Export handoff', icon: PackageCheck, title: 'A cleaner file. A complete handoff.', description: 'Keep the ready rows, exceptions, decisions, and next actions together.' },
+  { id: 'intake', label: 'Start', icon: FileInput, title: 'Make the next step clear.', description: 'Turn an incoming list into clear decisions, owners, and next steps.' },
+  { id: 'queue', label: 'Needs attention', icon: ListFilter, title: 'What needs a decision?', description: 'Review a question, confirm a correction, or give the next step an owner.' },
+  { id: 'review', label: 'What changed', icon: GitCompare, title: 'See what actually changed.', description: 'Compare each correction with the original, then approve or undo it. Your activity stays here too.' },
+  { id: 'export', label: 'Handoff', icon: PackageCheck, title: 'Ready for the next person.', description: 'Share what is ready, what still needs attention, and who takes it from here.' },
   { id: 'activity', label: 'Activity', icon: Activity, title: 'See what actually happened.', description: 'A record of actions taken in this workspace, with drafts and decisions kept distinct.' },
   { id: 'recipes', label: 'Import recipes', icon: SlidersHorizontal, title: 'Make the next import easier.', description: 'Reusable column matches and clear rules for the way your data works.' },
   { id: 'compare', label: 'Compare versions', icon: GitCompare, title: 'See what changed.', description: 'Compare two files while keeping every source record and uncertain match visible.' },
@@ -54,8 +57,10 @@ const VIEWS = [
   { id: 'services', label: 'Saved workspaces', icon: Database, title: 'Pick up where you left off.', description: 'Optional local storage, reviewer access, and connections for ongoing work.' },
   { id: 'guide', label: 'Quick start', icon: BookOpen, title: 'From a messy list to a useful handoff.', description: 'Learn the workflow with twelve fictional people and five practical steps.' },
 ];
+const PRIMARY_VIEWS = VIEWS.slice(0, 4);
+const ADVANCED_VIEWS = VIEWS.filter(item => ['recipes', 'compare', 'assistant', 'services'].includes(item.id));
 const FILTERS = [
-  { id: 'exceptions', label: 'Needs review' },
+  { id: 'exceptions', label: 'Needs attention' },
   { id: 'unassigned', label: 'Unassigned' },
   { id: 'waiting', label: 'Waiting' },
   { id: 'format', label: 'Formatting' },
@@ -185,13 +190,16 @@ function keepDialogFocus(event) {
   }
 }
 
-export default function IntakeRepair() {
+export default function RelayStation() {
   const [initial] = useState(initialSession);
   const [dataset, setDataset] = useState(initial.dataset);
   const [changes, setChanges] = useState(initial.changes);
   const [coordination, setCoordination] = useState(initial.coordination);
   const [remember, setRemember] = useState(initial.remember);
   const [view, setView] = useState('intake');
+  const [showImport, setShowImport] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [queueLayout, setQueueLayout] = useState('cards');
   const [raw, setRaw] = useState(initial.dataset?.raw || '');
   const [filename, setFilename] = useState(initial.dataset?.filename || 'intake.csv');
   const [inputIsExample, setInputIsExample] = useState(Boolean(initial.dataset?.synthetic));
@@ -244,6 +252,8 @@ export default function IntakeRepair() {
   const idIndex = dataset ? getColumnIndex(dataset, 'id') : -1;
   const unassignedCount = inspected.exceptions.filter(row => !coordination.assignments[row.key]?.owner).length;
   const pendingKeys = useMemo(() => new Set(pending.map(edit => edit.rowKey)), [pending]);
+  const needsAttention = row => row.issues.length > 0 || pendingKeys.has(row.key) || Boolean(coordination.assignments[row.key] && coordination.assignments[row.key].status !== 'done');
+  const attentionCount = inspected.rows.filter(needsAttention).length;
   const filteredRows = useMemo(() => inspected.rows.filter(row => {
     const assignment = coordination.assignments[row.key];
     const matches = filter === 'all' ? true
@@ -254,7 +264,7 @@ export default function IntakeRepair() {
       : filter === 'overdue' ? assignment?.dueDate && assignment.status !== 'done' && assignment.dueDate < new Date().toLocaleDateString('en-CA')
       : filter === 'ready' ? row.issues.length === 0 && !pendingKeys.has(row.key)
       : filter === 'pending' ? pendingKeys.has(row.key)
-      : row.issues.length > 0;
+      : row.issues.length > 0 || pendingKeys.has(row.key) || Boolean(assignment && assignment.status !== 'done');
     const haystack = [
       ...row.values, ...row.issues.map(issue => issue.title),
       assignment?.owner || '', assignment?.action || '',
@@ -313,12 +323,14 @@ export default function IntakeRepair() {
 
   function navigate(next) {
     setView(next);
+    if (ADVANCED_VIEWS.some(item => item.id === next)) setAdvancedOpen(true);
     setError('');
     window.setTimeout(() => headingRef.current?.focus(), 0);
   }
 
   function preparePreview(source = raw, sourceFilename = filename, synthetic = inputIsExample, originalSource = inputSource) {
     try {
+      setShowImport(true);
       const preview = previewCSV(source);
       setRaw(source);
       setFilename(sourceFilename);
@@ -335,13 +347,25 @@ export default function IntakeRepair() {
   }
 
   function tryExample() {
-    navigate('intake');
-    setRecipe(structuredClone(DEFAULT_RECIPE));
-    setInputWarnings([]); setWorkbookSheets([]); setPendingWorkbook(null);
-    preparePreview(EXAMPLE_CSV, 'fictional-cohort.csv', true, undefined);
-    setInputSource(undefined);
-    setColumnMap(previewCSV(EXAMPLE_CSV).suggestedMap);
-    setNotice('The example contains fictional records. Confirm the column matches to explore the repair queue.');
+    if (dataset) { setModal('example'); return; }
+    loadExample();
+  }
+
+  function loadExample() {
+    const exampleRecipe = structuredClone(DEFAULT_RECIPE);
+    const exampleMap = previewCSV(EXAMPLE_CSV).suggestedMap;
+    const next = createDataset(EXAMPLE_CSV, 'fictional-cohort.csv', true, { columnMap: exampleMap, recipe: exampleRecipe });
+    const nextCoordination = recordEvent(emptyCoordination(), {
+      type: 'import', detail: 'Opened the fictional example with its known column matches. All ' + next.rows.length + ' source records retained.',
+      changes: { columnMap: exampleMap },
+    });
+    setDataset(next); setChanges({}); setCoordination(nextCoordination);
+    setRecipe(exampleRecipe); setColumnMap(exampleMap); setRaw(EXAMPLE_CSV); setFilename(next.filename);
+    setInputIsExample(true); setInputSource(undefined); setInputWarnings([]);
+    setWorkbookSheets([]); setPendingWorkbook(null); setImportPreview(null); setRemoteWorkspace(null);
+    setShowImport(false); setExported(false); setFilter('exceptions'); setSearch(''); setPage(0);
+    setQueueLayout('cards'); setModal(null); navigate('queue');
+    setNotice('This example is fictional. Pick a card to review a question or plan the next step.');
   }
 
   function importCSV() {
@@ -369,6 +393,7 @@ export default function IntakeRepair() {
 
   async function readFile(file, sheetName) {
     if (!file) return;
+    setShowImport(true);
     if (file.size > MAX_BYTES) {
       setError('Choose a CSV, TSV, or Excel workbook smaller than 1 MB.');
       return;
@@ -623,7 +648,7 @@ export default function IntakeRepair() {
       const original = getOriginalSource(dataset);
       const originalEntry = 'original.' + original.format;
       const readme = [
-        'INTAKE REPAIR STATION — HANDOFF',
+        'RELAY STATION BY ETERNITY FLUX — HANDOFF',
         '',
         'Source file: ' + dataset.filename,
         'Prepared: ' + new Date().toISOString(),
@@ -634,6 +659,7 @@ export default function IntakeRepair() {
         'No source rows have been deleted or merged.',
         '',
         'FILES',
+        'handoff.html — start here: a readable summary of decisions, outstanding questions, and next owners. Open in any browser.',
         originalEntry + ' — exact imported source file, with its original content preserved.',
         ...(original.format !== 'csv' ? ['working-source.csv — the selected tabular data used for review; original workbook/TSV is preserved separately.'] : []),
         'clean.csv — approved working values for rows passing the configured checks.',
@@ -642,7 +668,7 @@ export default function IntakeRepair() {
         'change-log.csv — original and approved values for current corrections.',
         'assignments.csv — separate owner, next action, due date, and action status.',
         'activity.csv — recorded workspace actions.',
-        'session.json — restore this workspace in Intake Repair Station.',
+        'session.json — restore this workspace in Relay Station.',
         '',
         'COLUMN MAPPING',
         ...REQUIRED_COLUMNS.map(field => field + ' -> ' + (dataset.headers[getColumnIndex(dataset, field)] || '(unmapped)')),
@@ -661,6 +687,7 @@ export default function IntakeRepair() {
         'This archive contains the source data and activity. Share it only with the intended recipient.',
       ].join('\n');
       const files = {
+        'handoff.html': strToU8(createHandoffReport(dataset, changes, next)),
         [originalEntry]: original.bytes,
         ...(original.format !== 'csv' ? { 'working-source.csv': strToU8(dataset.raw) } : {}),
         'clean.csv': strToU8(exportResult.cleanCSV),
@@ -678,6 +705,21 @@ export default function IntakeRepair() {
       setNotice('Handoff ZIP prepared with all source rows accounted for. ' + recorded.warning);
     } catch (problem) {
       setError('The ZIP could not be prepared. ' + problem.message);
+    }
+  }
+
+  function exportReadableHandoff() {
+    if (!dataset || !exportResult) return;
+    try {
+      const recorded = tryRecordForDownload(coordination, {
+        type: 'export', detail: 'Prepared a readable handoff with decisions, unresolved questions, next owners, and every reviewed record.',
+      });
+      const html = createHandoffReport(dataset, changes, recorded.state);
+      downloadFile(html, safeStem(dataset.filename) + '-handoff.html', 'text/html;charset=utf-8');
+      setCoordination(recorded.state); setExported(true);
+      setNotice('Readable handoff prepared. Open the HTML file in any browser; Relay Station is not required. ' + recorded.warning);
+    } catch (problem) {
+      setError('The handoff could not be prepared. ' + problem.message);
     }
   }
 
@@ -714,6 +756,7 @@ export default function IntakeRepair() {
     setRemember(false);
     setModal(null);
     setSelectedKey(null);
+    setShowImport(false);
     navigate('intake');
     setNotice('The current workspace and saved browser copy were cleared.');
   }
@@ -747,7 +790,7 @@ export default function IntakeRepair() {
       setInputIsExample(Boolean(dataset?.synthetic)); setImportPreview(preview);
     }
     setColumnMap(map); navigate('intake');
-    setNotice('AI column suggestions are ready to inspect. Confirm the matches before opening the repair queue.');
+    setNotice('AI column suggestions are ready to inspect. Confirm the matches before opening Needs attention.');
   }
 
   function useAINextAction(rowKey, action, provenance = {}) {
@@ -769,24 +812,30 @@ export default function IntakeRepair() {
   return (
     <div className={'ir-app ' + (focus ? 'ir-focus ' : '') + (readable ? 'ir-readable' : '')}>
       <a className="ir-skip" href="#ir-main">Skip to workspace</a>
+      <input ref={fileRef} type="file" accept={ACCEPTED_IMPORT_TYPES} hidden tabIndex={-1} aria-label="Choose intake CSV, TSV or Excel" onChange={event => { readFile(event.target.files?.[0]); event.target.value = ''; }}/>
       <input
         ref={restoreRef} hidden tabIndex={-1} type="file" accept=".json,application/json"
         aria-label="Restore session JSON"
         onChange={event => { readBackup(event.target.files?.[0]); event.target.value = ''; }}
       />
       <aside className="ir-sidebar">
-        <div className="ir-brand"><Mark/><span>INTAKE REPAIR<small>BY ETERNITY FLUX</small></span></div>
+        <div className="ir-brand"><Mark/><span>RELAY STATION<small>BY ETERNITY FLUX</small></span></div>
         <p className="ir-nav-label"><span/>YOUR WORKSPACE</p>
         <nav aria-label="Workflow">
-          {VIEWS.map((item, index) => (
-            <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => navigate(item.id)} aria-current={view === item.id ? 'page' : undefined}>
+          {PRIMARY_VIEWS.map((item, index) => (
+            <button key={item.id} className={view === item.id || (item.id === 'review' && view === 'activity') ? 'active' : ''} onClick={() => navigate(item.id)} aria-current={view === item.id || (item.id === 'review' && view === 'activity') ? 'page' : undefined}>
               <item.icon size={18}/><span>{item.label}</span>
-              {item.id === 'queue' && inspected.exceptions.length > 0 ? <b>{inspected.exceptions.length}</b>
+              {item.id === 'queue' && attentionCount > 0 ? <b>{attentionCount}</b>
                 : item.id === 'review' && pending.length > 0 ? <b>{pending.length}</b>
                   : <small>{index < 4 ? '0' + (index + 1) : ''}</small>}
             </button>
           ))}
         </nav>
+        <details className="ir-advanced-nav" open={advancedOpen} onToggle={event => setAdvancedOpen(event.currentTarget.open)}>
+          <summary><SlidersHorizontal size={16}/>Advanced tools<ChevronRight size={14}/></summary>
+          <nav aria-label="Advanced tools">{ADVANCED_VIEWS.map(item => <button key={item.id} className={view === item.id ? 'active' : ''} aria-current={view === item.id ? 'page' : undefined} onClick={() => navigate(item.id)}><item.icon size={17}/><span>{item.label}</span></button>)}</nav>
+        </details>
+        <button className="ir-guide-link" onClick={() => navigate('guide')}><BookOpen size={17}/>Quick start</button>
         <div className="ir-sidebar-note">
           <ShieldCheck size={26}/><h3>Careful by design.</h3>
           <p>Keep the source.<br/>Review each change.<br/>Make the next step clear.</p>
@@ -798,7 +847,7 @@ export default function IntakeRepair() {
 
       <div className="ir-workspace">
         <header className="ir-topbar">
-          <div className="ir-breadcrumb"><span className="ir-live-dot"/>INTAKE REPAIR STATION<ChevronRight size={13}/><strong>{activeView.label}</strong></div>
+          <div className="ir-breadcrumb"><span className="ir-live-dot"/>RELAY STATION<ChevronRight size={13}/><strong>{activeView.label}</strong></div>
           <div className="ir-top-actions">
             <button className={readable ? 'selected' : ''} onClick={() => setReadable(!readable)} aria-pressed={readable} title="Larger readable text"><Type size={17}/><span>Readable</span></button>
             <button className={focus ? 'selected' : ''} onClick={() => setFocus(!focus)} aria-pressed={focus}><Focus size={17}/><span>{focus ? 'Exit focus' : 'Focus'}</span></button>
@@ -806,7 +855,8 @@ export default function IntakeRepair() {
           </div>
         </header>
         {focus && <nav className="ir-focus-nav" aria-label="Workflow in focus mode">
-          {VIEWS.map(item => <button key={item.id} className={view === item.id ? 'active' : ''} aria-current={view === item.id ? 'page' : undefined} onClick={() => navigate(item.id)}>{item.label}</button>)}
+          {PRIMARY_VIEWS.map(item => <button key={item.id} className={view === item.id ? 'active' : ''} aria-current={view === item.id ? 'page' : undefined} onClick={() => navigate(item.id)}>{item.label}</button>)}
+          <details className="ir-focus-tools"><summary>More tools</summary>{VIEWS.filter(item => !PRIMARY_VIEWS.includes(item)).map(item => <button key={item.id} onClick={() => navigate(item.id)}>{item.label}</button>)}</details>
         </nav>}
 
         <main id="ir-main" className="ir-main">
@@ -815,23 +865,27 @@ export default function IntakeRepair() {
             {dataset && <Pill tone={dataset.synthetic ? 'gold' : 'blue'} icon={FileText}>{dataset.synthetic ? 'Fictional example' : 'Your local file'}</Pill>}
           </div>
           <ErrorMessage>{error}</ErrorMessage>
-          {guided && <section className="ir-guide-strip" aria-label="Guided example progress"><BookOpen size={20}/><div><strong>Your first complete handoff</strong><p>{!dataset ? 'Confirm the example’s column matches, then open the queue.' : pending.length ? 'Compare each proposal in Review changes, then approve or undo it.' : !edits.length ? 'Inspect a record, assign a next action, and preview formatting.' : exported ? 'Handoff prepared. Keep the backup to reopen your work.' : 'Your correction decisions are recorded. Prepare the complete ZIP.'}</p></div><button className="ir-text-button" onClick={() => navigate('guide')}>View steps</button><button className="ir-icon-button" aria-label="Close guided walkthrough" onClick={() => setGuided(false)}><X size={16}/></button></section>}
+          {(view === 'review' || view === 'activity') && <nav className="ir-review-tabs" aria-label="Changes and activity">
+            <button className={view === 'review' ? 'active' : ''} aria-current={view === 'review' ? 'page' : undefined} onClick={() => navigate('review')}><GitCompare size={16}/>Corrections{pending.length > 0 && <span>{pending.length}</span>}</button>
+            <button className={view === 'activity' ? 'active' : ''} aria-current={view === 'activity' ? 'page' : undefined} onClick={() => navigate('activity')}><Activity size={16}/>Activity</button>
+          </nav>}
+          {guided && <section className="ir-guide-strip" aria-label="Guided example progress"><BookOpen size={20}/><div><strong>Your first complete handoff</strong><p>{!dataset ? 'Open the fictional example to start with a question.' : pending.length ? 'Compare each proposal in What changed, then approve or undo it.' : !edits.length ? 'Inspect a record, assign a next action, and preview formatting.' : exported ? 'Handoff prepared. Keep the backup to reopen your work.' : 'Your decisions are recorded. Download a readable handoff or the complete ZIP.'}</p></div><button className="ir-text-button" onClick={() => navigate('guide')}>View steps</button><button className="ir-icon-button" aria-label="Close guided walkthrough" onClick={() => setGuided(false)}><X size={16}/></button></section>}
 
           {view === 'intake' && <>
             <section className="ir-hero">
               <div>
-                <p className="ir-eyebrow">FROM INTAKE TO ACTION</p>
-                <h2>Good data.<br/><span>Clear next steps.</span></h2>
-                <p>Catch the inconsistencies, make careful corrections, and keep the unfinished work visible.</p>
+                <p className="ir-eyebrow">A CLEARER WAY TO PASS WORK ON</p>
+                <h2>See the issue.<br/><span>Keep work moving.</span></h2>
+                <p>Someone sends you a list. A few details need checking. Find the questions, record your decisions, and give the next person a clear handoff.</p>
                 <div className="ir-hero-actions">
                   <Button variant="gold" onClick={dataset ? () => navigate('queue') : tryExample}>{dataset ? 'Continue your workspace' : 'Try fictional example'}<ArrowRight size={16}/></Button>
-                  {!dataset && <button className="ir-hero-link" onClick={() => document.getElementById('csv-source')?.focus()}>Bring my own CSV</button>}
-                  <button className="ir-hero-link" onClick={() => navigate('guide')}>Guided walkthrough</button>
+                  <button className="ir-hero-link" onClick={() => fileRef.current?.click()}>Open a file</button>
+                  <button className="ir-hero-link" onClick={() => restoreRef.current?.click()}>Resume a backup</button>
                 </div>
                 {!dataset && <small className="ir-hero-note">No sign-up. Review locally; choose optional services when you need them.</small>}
               </div>
               <div className="ir-hero-sheet" aria-label="Illustration of fictional intake records">
-                <div className="ir-sheet-heading"><Table2 size={17}/><span>INTAKE · QUALITY REVIEW</span><span className="ir-sheet-dot"/></div>
+                <div className="ir-sheet-heading"><ListFilter size={17}/><span>QUESTIONS → NEXT STEPS</span><span className="ir-sheet-dot"/></div>
                 <div className="ir-sheet-columns"><span>RECORD</span><span>REVIEW NEEDED</span></div>
                 {[
                   { id: 'IR-1003', label: 'Confirm email address' },
@@ -842,16 +896,22 @@ export default function IntakeRepair() {
               </div>
             </section>
 
+            <section className="ir-start-steps" aria-label="How Relay Station works">
+              <article><span>01</span><h3>See what needs attention</h3><p>Missing details and unclear values become questions you can review one at a time.</p></article>
+              <article><span>02</span><h3>Make the decision visible</h3><p>Confirm a correction, or record who will find out. Keep the original alongside it.</p></article>
+              <article><span>03</span><h3>Pass on a clear next step</h3><p>Share a readable handoff with what changed, what is waiting, and who owns it.</p></article>
+            </section>
+            <div className="ir-start-options"><button className="ir-text-button" onClick={() => { setShowImport(true); window.setTimeout(() => document.getElementById('csv-source')?.focus(), 0); }}>Paste CSV instead<ArrowRight size={14}/></button><button className="ir-text-button" onClick={() => navigate('guide')}>Walk me through it<BookOpen size={14}/></button></div>
+
             {dataset && <div className="ir-resume-strip">
               <div><FileText size={19}/><span><strong>{dataset.filename}</strong><small>{dataset.rows.length} records · {pending.length} corrections awaiting review</small></span></div>
               <Button onClick={saveBackup}><Save size={15}/>Save session backup</Button>
             </div>}
 
-            <div className="ir-import-grid">
+            {showImport && <div className="ir-import-grid">
               <section className="ir-panel">
                 <div className="ir-section-head"><div><p className="ir-eyebrow">01 / BRING IN DATA</p><h2>A file, with context.</h2></div><Pill>CSV · TSV · XLSX</Pill></div>
                 <div className="ir-file-bar">
-                  <input ref={fileRef} type="file" accept={ACCEPTED_IMPORT_TYPES} hidden tabIndex={-1} aria-label="Choose intake CSV, TSV or Excel" onChange={event => { readFile(event.target.files?.[0]); event.target.value = ''; }}/>
                   <Button onClick={() => fileRef.current?.click()}><Upload size={16}/>Choose file</Button>
                   <span>{raw ? filename : 'No file selected'}</span>
                   <button className="ir-text-button" onClick={tryExample}>Try fictional example</button>
@@ -889,7 +949,7 @@ export default function IntakeRepair() {
                   </div>
                   <div className="ir-import-footer">
                     <p>{dataset ? 'Opening this file replaces the current workspace. Save a session backup first if you want to keep it.' : 'Each mapped role needs a different source column. Additional columns are carried through.'}</p>
-                    <Button variant="primary" disabled={!mappingComplete} onClick={importCSV}>Open repair queue<ArrowRight size={16}/></Button>
+                    <Button variant="primary" disabled={!mappingComplete} onClick={importCSV}>Open review<ArrowRight size={16}/></Button>
                   </div>
                 </section>}
               </section>
@@ -908,14 +968,14 @@ export default function IntakeRepair() {
                 <p className="ir-schema-note">Checks cover format and completeness. They do not confirm identity, source facts, or email delivery.</p>
                 <div className="ir-restore-link"><History size={18}/><div><strong>Picking up previous work?</strong><button className="ir-text-button" onClick={() => restoreRef.current?.click()}>Restore session JSON<ArrowRight size={13}/></button></div></div>
               </aside>
-            </div>
+            </div>}
           </>}
 
           {view === 'queue' && (dataset ? <>
             <Stats inspected={inspected} pending={pending} unassigned={unassignedCount}/>
             <section className="ir-queue-banner">
               <div className="ir-banner-icon"><ListFilter size={25}/></div>
-              <div><p className="ir-eyebrow">THE NEXT USEFUL STEP</p><h2>{inspected.exceptions.length ? inspected.exceptions.length + ' records need a closer look.' : 'The current values pass the checks.'}</h2><p>{pending.length ? pending.length + ' proposed corrections still need approval. Counts reflect the working preview.' : 'Review source values or give an unresolved record an owner and a clear next action.'}</p></div>
+              <div><p className="ir-eyebrow">ONE QUESTION AT A TIME</p><h2>{attentionCount ? attentionCount + ' records need attention.' : 'No outstanding questions or actions.'}</h2><p>{pending.length ? pending.length + ' proposed corrections still need approval. Review them in What changed.' : 'Open a card to review its details, or plan who will find out what is missing.'}</p></div>
               <Button variant="primary" onClick={() => setModal('bulk')} disabled={!safeEdits.length}><Sparkles size={15}/>Preview formatting<span className="ir-button-count">{safeEdits.length}</span></Button>
             </section>
             <div className="ir-queue-toolbar">
@@ -924,7 +984,25 @@ export default function IntakeRepair() {
               </div>
               <label className="ir-search"><Search size={17}/><span className="ir-sr-only">Search records, owners, actions, and issues</span><input id="record-search" type="search" placeholder="Find record, owner, or action" value={search} onChange={event => setSearch(event.target.value)}/></label>
             </div>
-            <div className="ir-table-wrap">
+            <div className="ir-layout-toolbar"><p>{filter === 'ready' ? 'These values pass the checks. A record can still have an open next action.' : 'Questions, proposed changes, and unfinished next actions stay visible.'}</p><div role="group" aria-label="Record layout"><button aria-pressed={queueLayout === 'cards'} onClick={() => setQueueLayout('cards')}><ListFilter size={15}/>Issue cards</button><button aria-pressed={queueLayout === 'table'} onClick={() => setQueueLayout('table')}><Table2 size={15}/>Table view</button></div></div>
+            {queueLayout === 'cards' ? <div className="ir-issue-cards" aria-label="Records needing decisions">
+              {visibleRows.map(row => {
+                const assignment = coordination.assignments[row.key];
+                const firstIssue = row.issues[0];
+                const issueColumn = firstIssue ? getColumnIndex(dataset, firstIssue.field) : -1;
+                const name = row.values[nameIndex]?.trim() || 'Name not recorded';
+                return <article className="ir-issue-card" key={row.key}>
+                  <div className="ir-issue-card-heading"><div className="ir-person"><span className="ir-person-avatar">{name.slice(0, 1)}</span><div><h3>{name}</h3><small>Source line {row.sourceLine} · {row.values[idIndex]?.trim() || 'ID missing'}</small></div></div><Pill tone={row.issues.length || pendingKeys.has(row.key) ? 'gold' : 'green'}>{row.issues.length ? row.issues.length + ' question' + (row.issues.length === 1 ? '' : 's') : pendingKeys.has(row.key) ? 'Needs approval' : 'Checks passed'}</Pill></div>
+                  <div className="ir-card-question"><h4>{firstIssue?.title || (pendingKeys.has(row.key) ? 'A correction needs your approval.' : assignment && assignment.status !== 'done' ? 'A next step is still open.' : 'The recorded values pass the checks.')}</h4><p>{firstIssue?.detail || (pendingKeys.has(row.key) ? 'Compare the proposed value with the original in What changed.' : 'Passing these checks does not confirm source facts or complete a follow-up task.')}</p>
+                    {issueColumn >= 0 && <div className="ir-card-source"><small>ORIGINAL · {dataset.headers[issueColumn]}</small><Value value={row.original[issueColumn]}/></div>}
+                    {row.issues.length > 1 && <small className="ir-card-more">Also: {row.issues.slice(1, 3).map(issue => issue.title).join(' · ')}{row.issues.length > 3 ? ' · +' + (row.issues.length - 3) + ' more' : ''}</small>}
+                  </div>
+                  <div className="ir-card-next"><UserRound size={17}/><div><strong>{assignment?.owner || 'No owner yet'}</strong><p>{assignment?.action || (row.issues.length ? 'Give this question a person and a next step.' : 'Add a next step if follow-up is needed.')}</p>{assignment && <small>{ACTION_STATUS[assignment.status]} · {formatDate(assignment.dueDate)}</small>}</div></div>
+                  <div className="ir-card-actions"><Button variant="primary" onClick={() => openRow(row)} aria-label={'Review record, source line ' + row.sourceLine}>Review record<ArrowRight size={15}/></Button><Button onClick={() => openRow(row, 'action')} aria-label={(assignment ? 'Edit next step for ' : 'Plan next action for ') + name}>{assignment ? 'Edit next step' : 'Plan next action'}<UserRound size={15}/></Button></div>
+                </article>;
+              })}
+              {!visibleRows.length && <div className="ir-empty-state ir-panel"><CircleCheck size={34}/><h3>No records match this view.</h3><p>Every source record is still here. Change the filter to see it.</p><Button onClick={() => { setFilter('all'); setSearch(''); }}>Show all records<ArrowRight size={15}/></Button></div>}
+            </div> : <div className="ir-table-wrap">
               <table className="ir-table">
                 <caption className="ir-sr-only">Intake records and their separate next actions. Line numbers refer to the original CSV.</caption>
                 <thead><tr><th>Source record</th><th>What needs review</th><th>Who owns the next action</th><th><span className="ir-sr-only">Record actions</span></th></tr></thead>
@@ -957,7 +1035,7 @@ export default function IntakeRepair() {
                 <p>{filter !== 'exceptions' || search ? 'Clear the filters to see every retained record.' : pending.length ? 'Approve or undo the staged corrections before exporting.' : 'Every record remains available in All records.'}</p>
                 <Button onClick={() => { setFilter('all'); setSearch(''); setPage(0); }}>Show all records<ArrowRight size={15}/></Button>
               </div>}
-            </div>
+            </div>}
             <div className="ir-table-footer">
               <span>{filteredRows.length} records in this view · {dataset.filename}</span>
               {pageCount > 1 && <div><button disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Previous</button><span>Page {currentPage + 1} of {pageCount}</span><button disabled={currentPage + 1 >= pageCount} onClick={() => setPage(currentPage + 1)}>Next</button></div>}
@@ -978,7 +1056,7 @@ export default function IntakeRepair() {
                 <div className="ir-diff"><div><small>ORIGINAL · UNCHANGED</small><Value value={edit.before}/></div><ArrowRight size={20}/><div><small>{edit.approved ? 'APPROVED VALUE' : 'PROPOSED VALUE'}</small><Value value={edit.after}/></div></div>
                 <div className="ir-change-actions"><button className="ir-text-button muted" onClick={() => undo(edit)}><RotateCcw size={14}/>Undo correction</button>{!edit.approved && <Button onClick={() => approve([edit.key])}><Check size={15}/>Approve change</Button>}</div>
               </article>)}
-            </div> : <div className="ir-empty-state ir-panel"><GitCompare size={36}/><h3>Corrections will appear here.</h3><p>Open a record or preview formatting suggestions in the repair queue.</p><Button variant="primary" onClick={() => navigate(dataset ? 'queue' : 'intake')}>Go to {dataset ? 'repair queue' : 'intake'}<ArrowRight size={15}/></Button></div>}
+            </div> : <div className="ir-empty-state ir-panel"><GitCompare size={36}/><h3>Corrections will appear here.</h3><p>Open a record or preview formatting suggestions in Needs attention.</p><Button variant="primary" onClick={() => navigate(dataset ? 'queue' : 'intake')}>Go to {dataset ? 'Needs attention' : 'Start'}<ArrowRight size={15}/></Button></div>}
             {!!edits.length && !pending.length && <div className="ir-review-complete"><CircleCheck size={22}/><div><strong>Your decisions are recorded in this workspace.</strong><p>{inspected.exceptions.length} records still need review and will remain in the exception handoff.</p></div><Button variant="primary" onClick={() => navigate('export')}>Prepare handoff<ArrowRight size={16}/></Button></div>}
           </>}
 
@@ -990,9 +1068,10 @@ export default function IntakeRepair() {
             {pending.length > 0 && <div className="ir-blocked-export" role="status"><AlertTriangle size={22}/><div><strong>Review {pending.length} corrections before exporting.</strong><p>Counts reflect proposed values. Approve or undo every correction to prepare the handoff. Source downloads and session backups remain available.</p></div><Button onClick={() => navigate('review')}>Review changes<ArrowRight size={15}/></Button></div>}
             <section className="ir-zip-card">
               <div className="ir-zip-icon"><PackageCheck size={30}/></div>
-              <div><p className="ir-eyebrow">ONE COMPLETE PACKAGE</p><h2>Ready for the next person.</h2><p>Clean data, exceptions, original source file, approved change log, next actions, activity, a session backup, and a guide to the files.</p><small>Includes original data. Choose the intended recipient carefully.</small></div>
-              <Button variant="gold" disabled={!!pending.length} onClick={exportZip}><Download size={17}/>Download handoff ZIP</Button>
+              <div><p className="ir-eyebrow">START WITH THE STORY</p><h2>A handoff anyone can read.</h2><p>What came in, what changed, what still needs an answer, and who takes the next step. Open the report in any browser.</p><small>The complete ZIP also includes the original, reviewed files, activity, and a backup.</small></div>
+              <div className="ir-handoff-buttons"><Button variant="gold" disabled={!!pending.length} onClick={exportReadableHandoff}><FileText size={17}/>Download readable handoff</Button><Button disabled={!!pending.length} onClick={exportZip}><Download size={17}/>Download handoff ZIP</Button></div>
             </section>
+            <details className="ir-export-details"><summary><Download size={17}/>Individual files & export settings<ChevronRight size={16}/></summary>
             <div className="ir-export-grid">
               <ExportCard icon={CircleCheck} label="THE READY FILE" title="Clean rows" description="Approved working values that pass the configured checks. Passing a check does not verify the source facts." count={inspected.clean.length} disabled={!!pending.length} onClick={() => exportFile('cleanCSV')} tone="green"/>
               <ExportCard icon={ListFilter} label="THE FOLLOW-UP FILE" title="Unresolved exceptions" description="Each unresolved row, its issues, and both original and reviewed values. Nothing is silently dropped." count={inspected.exceptions.length} disabled={!!pending.length} onClick={() => exportFile('exceptionCSV')} tone="gold"/>
@@ -1008,6 +1087,7 @@ export default function IntakeRepair() {
               </div>
             </section>
             <label className="ir-export-option"><input type="checkbox" checked={protectFormulas} onChange={event => setProtectFormulas(event.target.checked)}/><div><strong>Protect formula-like values for spreadsheets</strong><p>Add an apostrophe before values beginning with =, +, - or @ in exported copies. Original downloads remain exact.</p></div></label>
+            </details>
           </> : <Empty onLoad={() => navigate('intake')} onExample={tryExample}/>)}
 
           {view === 'activity' && (dataset ? <>
@@ -1044,7 +1124,7 @@ export default function IntakeRepair() {
             <Button onClick={() => restoreRef.current?.click()}><History size={15}/>Restore session</Button>
             {dataset && <button className="ir-text-button muted" onClick={() => setModal('clear')}>Clear workspace & saved copy</button>}
           </div>
-          <footer className="ir-footer"><span>INTAKE REPAIR STATION <i/> AN ETERNITY FLUX TOOL</span><span>Preserve the source. Improve the handoff.</span></footer>
+          <footer className="ir-footer"><span>RELAY STATION <i/> BY ETERNITY FLUX</span><span>Clear decisions. Confident handoffs.</span></footer>
         </main>
       </div>
 
@@ -1055,7 +1135,7 @@ export default function IntakeRepair() {
       >
         {modal && <div className="ir-dialog-inner">
           <div className="ir-dialog-head">
-            <div><p className="ir-eyebrow">{modal === 'record' ? 'SOURCE LINE ' + selected?.sourceLine : modal === 'bulk' ? 'EXPLICIT FORMATTING CORRECTIONS' : 'LOCAL WORKSPACE'}</p><h2 id="ir-dialog-title">{modal === 'record' ? 'Give this record a clear next step.' : modal === 'bulk' ? 'Small fixes. Fully visible.' : modal === 'restore' ? 'Restore this workspace?' : 'Clear the current workspace?'}</h2></div>
+            <div><p className="ir-eyebrow">{modal === 'record' ? 'SOURCE LINE ' + selected?.sourceLine : modal === 'bulk' ? 'EXPLICIT FORMATTING CORRECTIONS' : 'LOCAL WORKSPACE'}</p><h2 id="ir-dialog-title">{modal === 'record' ? 'Give this record a clear next step.' : modal === 'bulk' ? 'Small fixes. Fully visible.' : modal === 'restore' ? 'Restore this workspace?' : modal === 'example' ? 'Open the fictional example?' : 'Clear the current workspace?'}</h2></div>
             <button className="ir-icon-button" onClick={() => setModal(null)} aria-label="Close dialog"><X size={21}/></button>
           </div>
           <ErrorMessage>{modalError}</ErrorMessage>
@@ -1121,6 +1201,10 @@ export default function IntakeRepair() {
           {modal === 'clear' && <>
             <p className="ir-modal-description">This removes the loaded CSV, corrections, next actions, activity, and remembered session from this browser. Keep a backup if you want to return to this work.</p>
             <div className="ir-dialog-actions"><Button onClick={() => setModal(null)}>Keep working</Button><Button onClick={saveBackup}><Save size={15}/>Save backup first</Button><Button variant="primary" onClick={clearSession}>Clear workspace</Button></div>
+          </>}
+          {modal === 'example' && <>
+            <p className="ir-modal-description">This replaces the current workspace with fictional practice records. Save a backup first to keep your current decisions and next actions.</p>
+            <div className="ir-dialog-actions"><Button onClick={() => setModal(null)}>Keep working</Button><Button onClick={saveBackup}><Save size={15}/>Save backup first</Button><Button variant="primary" onClick={loadExample}>Open example</Button></div>
           </>}
         </div>}
       </dialog>

@@ -1,6 +1,6 @@
-# Imports, reusable recipes, and version comparison
+# Relay Station: imports, recipes, and version comparison
 
-These features run locally in the browser. They do not require an account, an AI provider, or a network request. The same modules are included in the downloadable offline app.
+These Relay Station features run locally in the browser. They do not require an account, an AI provider, or a network request. The same modules are included in the downloadable offline app. Open files on **Start**; recipe configuration and **Compare versions** are under **Advanced tools**. The fictional example opens **Needs attention** directly with its known mapping.
 
 ## CSV, TSV, and Excel workbooks
 

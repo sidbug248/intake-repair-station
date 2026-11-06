@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { resolve, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -33,6 +33,9 @@ const notices = await readFile(resolve(project, 'THIRD_PARTY_NOTICES.md'), 'utf8
 html += `\n<!--\n${license}\n${notices}\n-->\n`;
 const output = resolve(project, 'release');
 await mkdir(output, { recursive: true });
-await writeFile(resolve(output, 'intake-repair-station.html'), html);
-await writeFile(resolve(dist, 'intake-repair-station.html'), html);
-console.log(`Offline app written: release/intake-repair-station.html (${Buffer.byteLength(html).toLocaleString()} bytes)`);
+await writeFile(resolve(output, 'relay-station.html'), html);
+await writeFile(resolve(dist, 'relay-station.html'), html);
+// Remove the previous generated filename so a new build cannot ship a stale app.
+await rm(resolve(output, 'intake-repair-station.html'), { force: true });
+await rm(resolve(dist, 'intake-repair-station.html'), { force: true });
+console.log(`Offline app written: release/relay-station.html (${Buffer.byteLength(html).toLocaleString()} bytes)`);

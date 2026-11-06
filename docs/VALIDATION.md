@@ -1,8 +1,37 @@
-# Validation record
+# Relay Station validation record
 
-This record distinguishes observed checks from supported behavior and untested deployment scenarios. The current release is 0.2.0; distribution is through the repository and local/offline builds, with the public demo paused.
+This record distinguishes observed checks from supported behavior and untested deployment scenarios. The current implementation targets Relay Station v0.3.0; distribution is through the repository and local/offline builds, with the public site paused.
 
-## Version 0.2.0
+## Version 0.3.0 — verified November 6, 2026
+
+The final integrated run used Node.js 24.22.1 and Chromium 153, with two browser-test workers. Results below describe the final Relay Station build, including the readable handoff's keyboard-accessible table regions.
+
+| Gate | Observed result |
+| --- | --- |
+| Engine, formats, recipes, comparison, handoff, AI, and companion tests | **69 passed, 0 failed** in the final `npm test` run |
+| Production and offline build | Passed; final `release/relay-station.html` is **508,375 bytes** |
+| Browser workflows and regression checks | **21 passed, 0 failed** in the final complete Chromium run |
+| Automated accessibility checks | No detected WCAG A/AA violations in Start, table view, issue cards, the record dialog, and Handoff |
+| Responsive and keyboard behavior | 390px workspace and advanced-tool views fit the viewport; dialog focus and Escape checks passed |
+| Offline operation | Portable HTML opened and exported the fictional example with browser networking disabled |
+| Paid or live-provider inference | Not run; provider HTTP responses are mocked in tests, with no paid inference calls or outbound user messages |
+| Public hosted service | Paused; this release is distributed through the repository and local/offline builds |
+
+The final browser command was `npm run test:e2e -- --workers=2`, with `PLAYWRIGHT_CHROMIUM_EXECUTABLE` pointing to the installed Chromium executable. All 21 scenarios passed together on the final bundle.
+
+### What changed and what was checked
+
+- The fictional example opens directly into issue cards, with four main navigation choices and advanced tools initially collapsed. Opening an example over current work requires confirmation.
+- Own-file uploads retain explicit column mapping. CSV, TSV, and selected XLSX-sheet workflows preserve original bytes, every source row, and reviewed export results.
+- Issue cards and table view remain usable. Unfinished next actions stay visible even when data checks pass; completing an action does not erase an unresolved data question.
+- Pending corrections block both the readable handoff and ZIP. Approval, changed-value invalidation, undo, unsaved assignment/correction drafts, and portable restore retain their existing boundaries.
+- The ZIP includes `handoff.html` alongside original data, reviewed files, assignments, activity, and the session backup. The readable report preserves source references, approved changes, unresolved questions, and next owners.
+- Handoff unit tests cover HTML escaping, hostile-looking imported text, absence of generated outgoing links, missing/repeated identifiers, unmapped name fields, malformed state, TSV source metadata, and the full supported 2,000-row count without truncation.
+- Earlier browser-session keys still restore under the Relay Station name. Recipe reuse, advanced-tool navigation, local saves, conflict handling, viewer access, credentials, AI data scopes, and stale-result rejection passed their browser checks.
+
+These automated checks use fictional data and mocked provider/connector HTTP. They establish the tested behavior, not live-model usefulness, user-usability results, a competitor benchmark, or accessibility certification.
+
+## Historical version 0.2.0
 
 | Gate | Observed result |
 | --- | --- |

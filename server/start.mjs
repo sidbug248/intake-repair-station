@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { createCompanion, connectorFromEnv } from './companion.mjs';
 import { providersFromEnv } from './providers.mjs';
 
+// Keep the existing configuration and data path compatible across the rename.
 const dataDirectory = resolve(process.env.INTAKE_DATA_DIR || join(homedir(), '.intake-repair-station'));
 await mkdir(dataDirectory, { recursive: true, mode: 0o700 });
 await chmod(dataDirectory, 0o700).catch(() => {});
@@ -24,7 +25,7 @@ for (const origin of allowedOrigins) {
 const app = createCompanion({ ownerToken: token, ownerLabel: process.env.INTAKE_OWNER_LABEL || 'Workspace owner', database: join(dataDirectory, 'workspaces.sqlite'), providerConfig: providersFromEnv(), connector: connectorFromEnv(), allowedOrigins, allowFileOrigin: process.env.INTAKE_ALLOW_FILE_ORIGIN === '1' });
 await new Promise((resolveListen, reject) => { app.server.once('error', reject); app.server.listen(port, '127.0.0.1', resolveListen); });
 await chmod(join(dataDirectory, 'workspaces.sqlite'), 0o600).catch(() => {});
-console.log(`Local companion ready at http://127.0.0.1:${port}`);
+console.log(`Relay Station companion ready at http://127.0.0.1:${port}`);
 console.log(process.env.INTAKE_ACCESS_TOKEN ? 'Connect using the access token configured in INTAKE_ACCESS_TOKEN.' : `Your private access token is in ${tokenPath}. Copy it into the app's optional services connection.`);
 console.log('Provider keys stay in this process. The companion accepts loopback connections only.');
 let closing = false;

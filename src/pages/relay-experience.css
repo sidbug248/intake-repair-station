@@ -1,0 +1,95 @@
+/* Task-first presentation; the review engine and source formats stay unchanged. */
+summary { cursor: pointer; }
+summary:focus-visible { outline: 3px solid #b08a4d; outline-offset: 4px; }
+.ir-advanced-nav { margin-top: 18px; padding-top: 16px; border-top: 1px solid #ffffff20; }
+.ir-advanced-nav summary { display: flex; align-items: center; gap: 9px; padding: 10px 8px; color: #bdcbdc; font-size: 12px; list-style: none; }
+.ir-advanced-nav summary::-webkit-details-marker { display: none; }
+.ir-advanced-nav summary > svg:last-child { margin-left: auto; }
+.ir-advanced-nav[open] summary > svg:last-child { transform: rotate(90deg); }
+.ir-advanced-nav nav { margin-top: 9px; }
+.ir-guide-link { display: flex; align-items: center; gap: 10px; padding: 12px 9px; margin-top: 10px; border: 0; background: transparent; color: #bdcbdc; text-align: left; font-size: 12px; }
+.ir-guide-link:hover { color: white; }
+.ir-focus-tools { position: relative; align-self: center; }
+.ir-focus-tools summary { padding: 7px 12px; font-size: 12px; }
+.ir-focus-tools[open] { display: flex; flex-wrap: wrap; }
+.ir-start-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin: 24px 0 16px; }
+.ir-start-steps article { padding: 22px; border: 1px solid var(--ir-line); border-radius: 13px; background: #fff; }
+.ir-start-steps article > span { display: block; margin-bottom: 14px; font-size: 12px; color: #8a652f; letter-spacing: .14em; }
+.ir-start-steps h3 { margin-bottom: 10px; font-size: 17px; }
+.ir-start-steps p { color: #5c6c7d; font-size: 13px; line-height: 1.75; }
+.ir-start-options { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 15px; margin: 16px 0 28px; }
+.ir-review-tabs { display: flex; gap: 10px; margin: 0 0 22px; border-bottom: 1px solid var(--ir-line); }
+.ir-review-tabs button { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #546579; font-size: 13px; }
+.ir-review-tabs button.active { border-bottom-color: var(--ir-blue); color: #254d80; }
+.ir-review-tabs button span { background: #e9edf4; padding: 1px 6px; border-radius: 5px; font-size: 11px; }
+.ir-layout-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin: 4px 0 18px; }
+.ir-layout-toolbar > p { max-width: 530px; color: #5e6e7f; font-size: 12px; }
+.ir-layout-toolbar > div { display: flex; padding: 3px; border: 1px solid #d8dfe4; border-radius: 9px; background: #edf0f3; }
+.ir-layout-toolbar button { display: flex; align-items: center; gap: 7px; min-height: 36px; padding: 8px 12px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #4c6075; font-size: 12px; }
+.ir-layout-toolbar button[aria-pressed="true"] { background: white; color: #244d80; border-color: #cfd9e3; box-shadow: 0 2px 4px #1834560b; }
+.ir-issue-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.ir-issue-cards > .ir-empty-state { grid-column: 1 / -1; }
+.ir-issue-card { display: flex; flex-direction: column; overflow: hidden; border: 1px solid #dce2e5; border-radius: 14px; background: white; box-shadow: 0 3px 16px #14253c05; }
+.ir-issue-card-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 20px 0; }
+.ir-issue-card-heading .ir-person { min-width: 0; }
+.ir-issue-card-heading .ir-person h3 { font-size: 17px; overflow-wrap: anywhere; }
+.ir-issue-card-heading .ir-person small { font-size: 11px; }
+.ir-issue-card-heading .ir-person-avatar { display: grid; width: 38px; height: 38px; font-size: 14px; }
+.ir-card-question { flex: 1; padding: 19px 20px; }
+.ir-card-question h4 { margin: 0 0 7px; color: #243f5d; font-size: 15px; line-height: 1.45; }
+.ir-card-question > p { font-size: 13px; color: #596e80; overflow-wrap: anywhere; line-height: 1.75; }
+.ir-card-source { margin: 13px 0 0; padding: 11px 13px; border: 1px solid #e2e6e8; border-radius: 8px; background: #f7f8fa; }
+.ir-card-source > small { display: block; margin-bottom: 5px; color: #5f6f82; font-size: 10px; letter-spacing: .06em; overflow-wrap: anywhere; }
+.ir-card-source .ir-cell-value { overflow-wrap: anywhere; white-space: pre-wrap; }
+.ir-card-more { display: block; margin-top: 12px; color: #687581; font-size: 11px; line-height: 1.6; }
+.ir-card-next { display: flex; align-items: flex-start; gap: 11px; padding: 15px 20px; border-top: 1px solid #e6e9e9; background: #fbfaf7; color: #476078; }
+.ir-card-next > svg { margin-top: 3px; }
+.ir-card-next > div { min-width: 0; }
+.ir-card-next strong { font-size: 12px; color: #2d455e; overflow-wrap: anywhere; }
+.ir-card-next p { margin-top: 3px; font-size: 12px; overflow-wrap: anywhere; }
+.ir-card-next small { display: block; margin-top: 4px; font-size: 10px; color: #667482; }
+.ir-card-actions { display: flex; flex-wrap: wrap; gap: 9px; padding: 14px 20px 19px; background: #fbfaf7; }
+.ir-card-actions > .ir-button { flex: 1; min-height: 40px; padding: 10px 11px; font-size: 11px; }
+.ir-handoff-buttons { display: flex; flex-direction: column; gap: 10px; margin-left: auto; }
+.ir-handoff-buttons .ir-button { min-width: 230px; }
+.ir-export-details { margin-bottom: 22px; border: 1px solid #dfe3e2; border-radius: 12px; background: #fff; }
+.ir-export-details > summary { display: flex; align-items: center; gap: 10px; padding: 20px; color: #3b526d; font-size: 13px; list-style: none; }
+.ir-export-details > summary::-webkit-details-marker { display: none; }
+.ir-export-details > summary > svg:last-child { margin-left: auto; }
+.ir-export-details[open] > summary > svg:last-child { transform: rotate(90deg); }
+.ir-export-details[open] { padding: 0 20px 20px; }
+.ir-export-details[open] > summary { margin: 0 -20px 10px; }
+.ir-readable .ir-card-question > p, .ir-readable .ir-card-next p, .ir-readable .ir-start-steps p { font-size: 15px; }
+@media (max-width: 1220px) {
+  .ir-handoff-buttons { flex-direction: row; flex-wrap: wrap; margin-left: 0; width: 100%; }
+  .ir-handoff-buttons .ir-button { flex: 1; }
+}
+@media (max-width: 1050px) {
+  .ir-issue-cards { grid-template-columns: 1fr; }
+  .ir-start-steps { gap: 12px; }
+  .ir-start-steps article { padding: 18px; }
+}
+@media (max-width: 800px) {
+  .ir-advanced-nav { margin-top: 0; padding-top: 4px; }
+  .ir-advanced-nav nav { flex-wrap: wrap; margin: 4px 0 0; padding-bottom: 6px; }
+  .ir-advanced-nav summary { padding: 8px 0; }
+  .ir-guide-link { position: absolute; top: 25px; right: 22px; margin: 0; }
+  .ir-start-steps { grid-template-columns: 1fr; }
+  .ir-start-steps article { position: relative; padding-left: 61px; }
+  .ir-start-steps article > span { position: absolute; top: 20px; left: 22px; }
+  .ir-start-steps h3 { font-size: 16px; }
+  .ir-start-steps p { max-width: 650px; }
+}
+@media (max-width: 560px) {
+  .ir-issue-card-heading { padding: 18px 16px 0; }
+  .ir-card-question { padding: 16px; }
+  .ir-card-next { padding: 14px 16px; }
+  .ir-card-actions { padding: 12px 16px 17px; }
+  .ir-card-actions > .ir-button { flex-basis: 100%; font-size: 12px; }
+  .ir-handoff-buttons { flex-direction: column; }
+  .ir-handoff-buttons .ir-button { min-width: 0; width: 100%; white-space: normal; }
+  .ir-guide-link { top: 23px; right: 14px; font-size: 11px; }
+  .ir-start-options { justify-content: flex-start; }
+  .ir-layout-toolbar > div { width: 100%; }
+  .ir-layout-toolbar button { flex: 1; justify-content: center; }
+}

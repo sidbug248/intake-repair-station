@@ -1,7 +1,7 @@
 node_modules/
 dist/
 release/*
-!release/intake-repair-station.html
+!release/relay-station.html
 test-results/
 playwright-report/
 .env

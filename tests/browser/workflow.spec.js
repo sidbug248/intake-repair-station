@@ -19,14 +19,15 @@ function workflow(page, name) {
 
 async function importSource(page, source = SOURCE) {
   await page.goto('/');
-  await page.getByLabel('Choose intake CSV').setInputFiles({
+  await page.getByLabel('Choose intake CSV, TSV or Excel', { exact: true }).setInputFiles({
     name: 'cohort.csv', mimeType: 'text/csv', buffer: Buffer.from(source),
   });
   await page.getByRole('button', { name: 'Inspect CSV', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Confirm column mapping.' })).toBeVisible();
   await expect(page.getByLabel('Source column for Source ID')).toHaveValue('Participant ID');
-  await page.getByRole('button', { name: 'Open repair queue', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Put attention where it helps.');
+  await page.getByRole('button', { name: 'Open review', exact: true }).click();
+  await page.getByRole('button', { name: 'Table view', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('What needs a decision?');
 }
 
 async function downloadBytes(page, locator) {
@@ -52,7 +53,7 @@ test('mapped upload → assignment → reviewed corrections → complete ZIP →
   });
   page.on('pageerror', error => pageErrors.push(error.message));
   await importSource(page);
-  await expect(page.getByRole('heading', { name: '2 records need a closer look.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '2 records need attention.' })).toBeVisible();
 
   await page.getByRole('button', { name: /Assign next action for Casey Reed/ }).click();
   const dialog = page.getByRole('dialog');
@@ -63,25 +64,25 @@ test('mapped upload → assignment → reviewed corrections → complete ZIP →
   await dialog.getByRole('textbox', { name: /^Handoff note/ }).fill('Awaiting source confirmation.');
   await dialog.getByRole('button', { name: 'Save next action', exact: true }).click();
   await expect(dialog).not.toBeVisible();
-  await expect(page.getByRole('heading', { name: '2 records need a closer look.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '2 records need attention.' })).toBeVisible();
   await page.getByRole('button', { name: 'Waiting', exact: true }).click();
   await expect(page.getByRole('row').filter({ hasText: 'Casey Reed' })).toHaveCount(1);
   await expect(page.getByRole('row').filter({ hasText: 'Bennett Park' })).toHaveCount(0);
 
   await page.getByRole('button', { name: /^Preview formatting/ }).click();
   await dialog.getByRole('button', { name: 'Stage 2 suggestions', exact: true }).click();
-  await workflow(page, 'Export handoff').click();
+  await workflow(page, 'Handoff').click();
   await expect(page.getByRole('button', { name: 'Download handoff ZIP' })).toBeDisabled();
   await expect(page.getByText('Review 2 corrections before exporting.', { exact: true })).toBeVisible();
-  await workflow(page, 'Review changes').click();
+  await workflow(page, 'What changed').click();
   await page.getByRole('button', { name: 'Approve all 2 pending changes', exact: true }).click();
-  await workflow(page, 'Export handoff').click();
+  await workflow(page, 'Handoff').click();
   const downloaded = await downloadBytes(page, page.getByRole('button', { name: 'Download handoff ZIP' }));
   expect(downloaded.name).toBe('cohort-handoff.zip');
   const zip = unzipSync(downloaded.bytes);
   expect(Object.keys(zip).sort()).toEqual([
     'README.txt', 'activity.csv', 'all-reviewed-rows.csv', 'assignments.csv',
-    'change-log.csv', 'clean.csv', 'exceptions.csv', 'original.csv', 'session.json',
+    'change-log.csv', 'clean.csv', 'exceptions.csv', 'handoff.html', 'original.csv', 'session.json',
   ].sort());
   // Compare bytes: a normal UTF-8 text decoder deliberately strips a leading BOM.
   expect(Buffer.from(zip['original.csv'])).toEqual(Buffer.from(SOURCE));
@@ -107,6 +108,9 @@ test('mapped upload → assignment → reviewed corrections → complete ZIP →
   expect(snapshot.raw).toBe(SOURCE);
   expect(snapshot.coordination.events.map(event => event.type)).toEqual(['import', 'assignment', 'stage', 'approve', 'export']);
   expect(strFromU8(zip['README.txt'])).toContain('4 imported = 3 ready + 1 exceptions.');
+  expect(strFromU8(zip['handoff.html'])).toContain('Relay Station');
+  expect(strFromU8(zip['handoff.html'])).toContain('Morgan');
+  expect(strFromU8(zip['handoff.html'])).toContain('Casey Reed');
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
 
   const secondContext = await browser.newContext();
@@ -116,8 +120,9 @@ test('mapped upload → assignment → reviewed corrections → complete ZIP →
     name: 'cohort-session.json', mimeType: 'application/json', buffer: Buffer.from(zip['session.json']),
   });
   await restored.getByRole('dialog').getByRole('button', { name: 'Restore workspace' }).click();
+  await restored.getByRole('button', { name: 'Table view', exact: true }).click();
   await expect(restored.getByRole('button', { name: 'Edit next action for Casey Reed' })).toContainText('Morgan');
-  await workflow(restored, 'Export handoff').click();
+  await workflow(restored, 'Handoff').click();
   const restoredDownload = await downloadBytes(restored, restored.getByRole('button', { name: 'Download handoff ZIP' }));
   const restoredZip = unzipSync(restoredDownload.bytes);
   for (const name of ['original.csv', 'clean.csv', 'exceptions.csv', 'all-reviewed-rows.csv', 'change-log.csv', 'assignments.csv']) {
@@ -141,15 +146,15 @@ test('saving an assignment preserves an unstaged correction, and a new value req
   await expect(dialog.getByRole('textbox', { name: /^Email address/ })).toHaveValue('casey@example.org');
   await dialog.getByRole('button', { name: 'Stage corrections' }).click();
   await page.getByRole('button', { name: 'Approve change', exact: true }).click();
-  await workflow(page, 'Repair queue').click();
+  await workflow(page, 'Needs attention').click();
   await page.getByRole('row').filter({ hasText: 'Casey Reed' }).getByRole('button', { name: /^Review/ }).click();
   await dialog.getByRole('textbox', { name: /^Email address/ }).fill('casey.updated@example.org');
   await dialog.getByRole('button', { name: 'Stage corrections' }).click();
-  await workflow(page, 'Export handoff').click();
+  await workflow(page, 'Handoff').click();
   await expect(page.getByRole('button', { name: 'Download handoff ZIP' })).toBeDisabled();
-  await workflow(page, 'Review changes').click();
+  await workflow(page, 'What changed').click();
   await page.getByRole('button', { name: 'Undo correction' }).click();
-  await workflow(page, 'Repair queue').click();
+  await workflow(page, 'Needs attention').click();
   await page.getByRole('row').filter({ hasText: 'Casey Reed' }).getByRole('button', { name: /^Review/ }).click();
   await expect(dialog.getByRole('textbox', { name: /^Email address/ })).toHaveValue('casey.example.org');
 });
@@ -159,9 +164,10 @@ test('invalid imports and backups leave the current workspace intact; persistenc
   await page.getByLabel('Remember on this device').check();
   await expect.poll(() => page.evaluate(() => localStorage.length)).toBe(1);
   await page.reload();
-  await workflow(page, 'Repair queue').click();
-  await expect(page.getByRole('heading', { name: '2 records need a closer look.' })).toBeVisible();
-  await workflow(page, 'Bring in data').click();
+  await workflow(page, 'Needs attention').click();
+  await expect(page.getByRole('heading', { name: '2 records need attention.' })).toBeVisible();
+  await workflow(page, 'Start').click();
+  await page.getByRole('button', { name: 'Paste CSV instead', exact: true }).click();
   await page.getByLabel('Or paste your CSV').fill('id,name\n"unclosed,x');
   await page.getByRole('button', { name: 'Inspect CSV' }).click();
   await expect(page.getByRole('alert')).toContainText('not closed');
@@ -169,16 +175,18 @@ test('invalid imports and backups leave the current workspace intact; persistenc
     name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from('{"version":1,"raw":"broken"}'),
   });
   await expect(page.getByRole('alert')).toContainText('Could not restore this backup');
-  await workflow(page, 'Repair queue').click();
-  await expect(page.getByRole('heading', { name: '2 records need a closer look.' })).toBeVisible();
+  await workflow(page, 'Needs attention').click();
+  await expect(page.getByRole('heading', { name: '2 records need attention.' })).toBeVisible();
   await page.getByRole('button', { name: 'Clear workspace & saved copy' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Clear workspace', exact: true }).click();
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
+  await page.getByRole('button', { name: 'Paste CSV instead', exact: true }).click();
   await expect(page.getByLabel('Or paste your CSV')).toHaveValue('');
 });
 
 test('oversized pasted input is rejected rather than silently truncated', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Paste CSV instead', exact: true }).click();
   const input = page.getByLabel('Or paste your CSV');
   expect(await input.getAttribute('maxlength')).toBeNull();
   const tooLarge = 'id,name,email,status,start_date\n1,' + 'x'.repeat(1_000_000);
@@ -186,10 +194,10 @@ test('oversized pasted input is rejected rather than silently truncated', async 
   await page.getByRole('button', { name: 'Inspect CSV' }).click();
   await expect(page.getByRole('alert')).toContainText('smaller than 1 MB');
   await expect(input).toHaveValue(tooLarge);
-  await expect(page.getByRole('button', { name: 'Open repair queue' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Open review' })).toHaveCount(0);
 });
 
-test('desktop main views and record dialog have no detected WCAG A/AA violations', async ({ page }) => {
+test('desktop main views, both record layouts, and record dialog have no detected WCAG A/AA violations', async ({ page }) => {
   await page.goto('/');
   const scan = async () => {
     const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
@@ -198,11 +206,14 @@ test('desktop main views and record dialog have no detected WCAG A/AA violations
   await scan();
   await importSource(page);
   await scan();
+  await page.getByRole('button', { name: 'Issue cards', exact: true }).click();
+  await scan();
+  await page.getByRole('button', { name: 'Table view', exact: true }).click();
   await page.getByRole('button', { name: 'Assign next action for Casey Reed' }).click();
   await scan();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).not.toBeVisible();
-  await workflow(page, 'Export handoff').click();
+  await workflow(page, 'Handoff').click();
   await scan();
 });
 
@@ -221,7 +232,7 @@ test('mobile workspace fits the viewport and dialogs support keyboard focus and 
   await page.keyboard.press('Escape');
   await expect(dialog).not.toBeVisible();
   await expect(page.getByRole('button', { name: 'Assign next action for Casey Reed' })).toBeFocused();
-  await workflow(page, 'Export handoff').click();
+  await workflow(page, 'Handoff').click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -230,10 +241,11 @@ test('portable HTML opens and exports a fictional example with no network', asyn
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(pathToFileURL(resolve('release/intake-repair-station.html')).href);
+  await page.goto(pathToFileURL(resolve('release/relay-station.html')).href);
+  await expect(page).toHaveTitle('Relay Station by Eternity Flux');
   await page.getByRole('button', { name: 'Try fictional example', exact: true }).first().click();
-  await page.getByRole('button', { name: 'Open repair queue' }).click();
-  await workflow(page, 'Export handoff').click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('What needs a decision?');
+  await workflow(page, 'Handoff').click();
   const result = await downloadBytes(page, page.getByRole('button', { name: 'Download handoff ZIP' }));
   const zip = unzipSync(result.bytes);
   expect(csvRows(zip, 'all-reviewed-rows.csv')).toHaveLength(13);

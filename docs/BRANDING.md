@@ -1,4 +1,8 @@
-# Eternity Flux identity
+# Relay Station by Eternity Flux: identity
+
+The product name is **Relay Station**. The full attribution is **Relay Station by Eternity Flux**. Use `relay-station` for the repository/package slug and `release/relay-station.html` for the portable app. The browser title uses the full attribution.
+
+The product promise is: **Find what needs attention. Record the decision. Make the next step clear.** Describe it as an operational handoff desk that preserves incoming files, reviewed corrections, and responsibility for unfinished work.
 
 The app uses a modern **Heritage Ouroboros EF** identity inspired by the owner's original Eternity Flux emblem. Its defining elements are a continuous, tapered serpent biting its tail and custom serif E/F letterforms in a diagonal arrangement. The paths are newly drawn; the historical reference PDF is not distributed with the project.
 
@@ -47,3 +51,5 @@ The application embeds its SVG in the JavaScript build so the portable HTML rema
 The software and included artwork use the repository's MIT license. Preserve the applicable copyright and license notices when redistributing them. The Eternity Flux name and mark identify this project's origin; inclusion of artwork does not imply that Eternity Flux endorses a modified distribution. Make a fork's authorship and identity clear to its users.
 
 A product rename does not require a new MIT license. Keep existing browser-storage identifiers and session formats compatible when changing visible names.
+
+The legal notice remains **Copyright (c) 2026 Mohsin Siddiqi, trading as Eternity Flux Technologies**. The product's “by Eternity Flux” attribution does not replace the copyright holder. Legacy compatibility identifiers and historical release records may retain earlier wording; current app headings, screenshots, downloads, and reader-facing documentation use Relay Station.

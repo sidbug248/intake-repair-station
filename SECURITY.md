@@ -1,12 +1,14 @@
-# Security and data handling
+# Relay Station security and data handling
 
-Version 0.2.0 provides a complete browser core and optional local services. The public hosted deployment is paused. Importing and reviewing a file does not automatically start a service, upload data, or call an AI model.
+Relay Station by Eternity Flux v0.3.0 provides a complete browser core and optional local services. The public hosted deployment is paused. Importing and reviewing a file does not automatically start a service, upload data, or call an AI model.
 
 ## Core workspace
 
 Source files, corrections, assignments, and local activity live in the current tab. **Remember on this device** can store a session in that browser profile. Saved recipes contain configuration rather than record rows. A session backup includes the actual source data, review state, and activity; for XLSX it includes the entire original workbook, including unselected or hidden sheets.
 
 Browser storage and downloaded backups are not encrypted vaults. Clearing the browser workspace does not retrieve downloads or copies already shared. Local owner names are entered labels, and browser activity is editable session data rather than independently verified history.
+
+The readable `handoff.html` report is an ordinary data file. It can include record names, unresolved issues, approved values, and owner/action text. The recipient does not need Relay Station to read it; choose a recipient with the same care as for the data bundle. Preparing the report does not send it anywhere.
 
 ## Optional companion
 

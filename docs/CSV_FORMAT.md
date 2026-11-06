@@ -1,6 +1,6 @@
-# CSV checks and handoff exports
+# Relay Station: CSV checks and handoff exports
 
-Version 0.2.0 accepts CSV, TSV, and XLSX. This page explains the tabular checks and CSV handoff format. See [Formats and recipes](FORMATS_AND_RECIPES.md) for worksheet selection, original-file preservation, Excel limitations, reusable recipes, and import comparison. The public deployment is paused; these workflows are available in local and offline builds.
+Relay Station v0.3.0 accepts CSV, TSV, and XLSX. This page explains the tabular checks and handoff formats. See [Formats and recipes](FORMATS_AND_RECIPES.md) for worksheet selection, original-file preservation, Excel limitations, reusable recipes, and import comparison. The public deployment is paused; these workflows are available in local and offline builds.
 
 ## Input requirements
 
@@ -35,7 +35,7 @@ Second line of the same note"
 
 ## Confirm the column mapping
 
-The default Participant intake recipe checks five fields. Source columns can have different names and can appear in any order. Select which source column supplies each required role before opening the repair queue. A custom recipe can make roles optional and add rules for arbitrary source columns; it is not restricted to participant lists.
+The default Participant intake recipe checks five fields. Source columns can have different names and can appear in any order. When opening your own file on **Start**, confirm which source column supplies each required role before entering **Needs attention**. The fictional example already has a known mapping and opens directly. A custom recipe in **Advanced tools → Import recipes** can make roles optional and add rules for arbitrary source columns; it is not restricted to participant lists.
 
 | Field used by the app | Example source header | Expected value |
 | --- | --- | --- |
@@ -79,15 +79,21 @@ A row with a different number of cells from the header is retained as an excepti
 
 ## Proposed values and approved values
 
-The repair queue previews staged corrections so you can see whether they resolve an issue. A preview is not an approval.
+**Needs attention** previews staged corrections so you can see whether they resolve an issue. A preview is not an approval.
 
-Every proposed correction records the original and new value. Approve it or undo it in **Review changes**. Editing an approved correction creates a new proposal that needs review again. A corrected cell can contain at most 10,000 characters. Generated handoff exports remain unavailable while any proposal awaits approval.
+Every proposed correction records the original and new value. Approve it or undo it in **What changed**. Editing an approved correction creates a new proposal that needs review again. A corrected cell can contain at most 10,000 characters. Generated handoff exports, including the readable HTML report, remain unavailable while any proposal awaits approval.
 
 “No open issues” describes the checks in the current preview. A row can still require a follow-up action, and a follow-up marked Action complete can still have unresolved data issues.
 
 ## Export files
 
 The ZIP uses the filenames below. Individual CSV downloads add a filename stem from the imported file, such as `cohort-clean.csv`.
+
+### `handoff.html`
+
+A readable report of the reviewed file: what came in, what changed, what remains unresolved, and who owns each next action. It opens in a browser without Relay Station or an AI connection. It keeps data status separate from follow-up status and uses the same approved review state as the CSV outputs. The standalone report download is named `<source-stem>-handoff.html`.
+
+The report contains source-derived information and assignment text. It is a handoff document, not an interactive review session or proof of delivery. Use `session.json` to resume work in the app.
 
 ### `original.csv`, `original.tsv`, or `original.xlsx`
 
@@ -130,6 +136,10 @@ Events in the order recorded by the local workspace, oldest first. Browser event
 A restorable session containing the working CSV, preserved original TSV/XLSX when applicable, filename, confirmed mapping, active recipe, corrections and their approval state, assignments, and activity. A backup can be saved before all corrections are approved. Restore it in the app to continue the review.
 
 Treat backups as data files: they contain the original records. Restoring a backup replaces the current workspace rather than merging two reviews. The browser accepts backup files up to 10,000,000 bytes; the working tabular source and original attachment inside must still fit their input limits. Optional companion saves have their own 8 MB snapshot limit; see [Local services](LOCAL_SERVICES.md). Saved coordination data is also bounded to 10,000 events and 4,000,000 characters of serialized text.
+
+### `README.txt`
+
+An explanation of the package, row reconciliation, active checks, source mapping, and output limits. It points recipients to `handoff.html` first. Preparing a package does not send it or change the underlying source.
 
 ## Spreadsheet formula protection
 

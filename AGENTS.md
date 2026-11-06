@@ -1,7 +1,9 @@
-# Working on Intake Repair Station
+# Working on Relay Station by Eternity Flux
 
-Keep the workflow understandable: import, inspect, stage corrections, review,
-assign unresolved next actions, and export a complete handoff.
+Keep the operational job understandable: find what needs attention, review what
+changed, and give the next person clear decisions, owners, and next steps.
+The primary navigation is Start, Needs attention, What changed, and Handoff.
+Keep advanced configuration available without requiring it for the first example.
 
 - Preserve the original source and every source row. Never silently truncate,
   drop, merge, or deduplicate records. TSV/XLSX originals remain separate from
@@ -30,4 +32,8 @@ assign unresolved next actions, and export a complete handoff.
 - Distribution is repository/local/offline only while the public deployment is
   paused. Do not re-enable public hosting without an explicit user request.
 - Document format changes and limits. Demo records must remain fictional.
+- Preserve saved-session and companion compatibility during product renames.
+  Legacy storage/protocol identifiers are not branding errors to replace blindly.
+- The readable handoff must use reviewed state and remain understandable without
+  the app. Preparing a download is not evidence of delivery or external contact.
 - Preserve the MIT license and notices required by third-party dependencies.

@@ -1,4 +1,27 @@
-# Changelog
+# Relay Station changelog
+
+## 0.3.0 — 2026-11-06
+
+### Changed
+
+- Renamed the application to **Relay Station by Eternity Flux**, including product headings, repository documentation, package identity, and the portable `relay-station.html` build.
+- Organized the primary workflow around **Start**, **Needs attention**, **What changed**, and **Handoff**. Recipe configuration, comparison, AI, and saved workspaces remain available under **Advanced tools**.
+- Made issue cards the initial review view, with the table available when needed.
+- Opened the fictional example directly into review with its known mapping, avoiding a configuration step on the first try.
+- Rewrote the first-use documentation around decisions, unresolved questions, owners, and next actions while preserving the casual, hybrid, and technical explanations.
+
+### Added
+
+- A readable `handoff.html` report in the complete ZIP and as a standalone download. It uses reviewed state, preserves the pending-correction gate, and needs no AI or app installation to read.
+
+### Preserved
+
+- Original source content, every admitted row, explicit correction review, and independent follow-up state.
+- Existing session and companion compatibility, including legacy machine-facing identifiers where needed.
+- The approved EF ouroboros identity, MIT license, and Mohsin Siddiqi / Eternity Flux Technologies copyright notice.
+- Repository/local/offline distribution. The public hosted site remains paused.
+
+See [Validation](docs/VALIDATION.md) for observed verification results and their limits.
 
 ## 0.2.0
 

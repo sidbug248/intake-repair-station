@@ -31,25 +31,36 @@ const test = base.extend({
   },
 });
 
-function navigation(page, label) {
-  return page.getByRole('navigation', { name: 'Workflow', exact: true }).getByRole('button', { name: new RegExp('^' + label + '(?:\\s|$)') });
+async function navigate(page, label) {
+  if (['Import recipes', 'Compare versions', 'AI assistance', 'Saved workspaces'].includes(label)) {
+    const advanced = page.locator('details.ir-advanced-nav');
+    if (await advanced.getAttribute('open') === null) await advanced.locator('summary').click();
+    await page.getByRole('navigation', { name: 'Advanced tools', exact: true }).getByRole('button', { name: label, exact: true }).click();
+  } else if (label === 'Quick start') {
+    await page.locator('.ir-sidebar').getByRole('button', { name: label, exact: true }).click();
+  } else {
+    await page.getByRole('navigation', { name: 'Workflow', exact: true }).getByRole('button', { name: new RegExp('^' + label + '(?:\\s|$)') }).click();
+  }
 }
 async function upload(page, source = SOURCE, name = 'cohort.csv', open = true) {
   await page.getByLabel('Choose intake CSV, TSV or Excel', { exact: true }).setInputFiles({ name, mimeType: name.endsWith('.tsv') ? 'text/tab-separated-values' : 'text/csv', buffer: Buffer.from(source) });
   await page.getByRole('button', { name: 'Inspect CSV', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Confirm column mapping.' })).toBeVisible();
-  if (open) await page.getByRole('button', { name: 'Open repair queue', exact: true }).click();
+  if (open) {
+    await page.getByRole('button', { name: 'Open review', exact: true }).click();
+    await page.getByRole('button', { name: 'Table view', exact: true }).click();
+  }
 }
 async function downloaded(page, button) {
   const pending = page.waitForEvent('download'); await button.click(); const item = await pending;
   expect(await item.failure()).toBeNull(); return { name: item.suggestedFilename(), bytes: await readFile(await item.path()) };
 }
 async function handoff(page) {
-  await navigation(page, 'Export handoff').click();
+  await navigate(page, 'Handoff');
   return unzipSync((await downloaded(page, page.getByRole('button', { name: 'Download handoff ZIP', exact: true }))).bytes);
 }
 async function connect(page, companion, token = OWNER) {
-  await navigation(page, 'Saved workspaces').click();
+  await navigate(page, 'Saved workspaces');
   await page.getByLabel('Companion address', { exact: true }).fill(companion.address);
   await page.getByLabel('Companion access token', { exact: true }).fill(token);
   await page.getByRole('button', { name: 'Connect locally', exact: true }).click();
@@ -71,10 +82,11 @@ function workbook() {
 test('guided example reaches a reviewed handoff and keyboard navigation stays useful', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
-  await navigation(page, 'Quick start').click();
+  await navigate(page, 'Quick start');
   await page.getByRole('button', { name: 'Start guided example', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Guided example progress' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open repair queue', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('What needs a decision?');
+  await page.getByRole('button', { name: 'Table view', exact: true }).click();
   await page.keyboard.press('/');
   await expect(page.locator('#record-search')).toBeFocused();
   await page.locator('#record-search').fill('Dana');
@@ -103,7 +115,7 @@ test('guided example reaches a reviewed handoff and keyboard navigation stays us
 test('custom column recipe is applied, saved without records, and reused after reload', async ({ page }) => {
   await page.goto('/');
   await upload(page, 'Ticket,Contact,Score\nT1,Amara Stone,90\nT2,Bennett Park,140\n', 'scores.csv', false);
-  await navigation(page, 'Import recipes').click();
+  await navigate(page, 'Import recipes');
   await page.getByLabel('Recipe name', { exact: true }).fill('Training scores');
   for (const label of ['Email', 'Status', 'Start date']) await page.getByRole('checkbox', { name: label, exact: true }).uncheck();
   await page.getByRole('combobox', { name: 'Source column', exact: true }).selectOption('Score');
@@ -111,10 +123,10 @@ test('custom column recipe is applied, saved without records, and reused after r
   await page.getByLabel('Minimum (optional)', { exact: true }).fill('0');
   await page.getByLabel('Maximum (optional)', { exact: true }).fill('100');
   await page.getByRole('button', { name: 'Add rule', exact: true }).click();
-  await navigation(page, 'Bring in data').click();
+  await navigate(page, 'Start');
   await page.getByLabel('Source column for Source ID', { exact: true }).selectOption('Ticket');
   await page.getByLabel('Source column for Name', { exact: true }).selectOption('Contact');
-  await navigation(page, 'Import recipes').click();
+  await navigate(page, 'Import recipes');
   await page.getByRole('button', { name: 'Save recipe on device', exact: true }).click();
   const exported = await downloaded(page, page.getByRole('button', { name: 'Export recipe', exact: true }));
   const recipe = JSON.parse(exported.bytes.toString());
@@ -122,8 +134,9 @@ test('custom column recipe is applied, saved without records, and reused after r
   expect(recipe.rules).toEqual([{ column: 'Score', type: 'number', min: 0, max: 100 }]);
   expect(recipe.columnMap.id).toBe('Ticket');
   expect(exported.bytes.toString()).not.toContain('Bennett Park');
-  await navigation(page, 'Bring in data').click();
-  await page.getByRole('button', { name: 'Open repair queue', exact: true }).click();
+  await navigate(page, 'Start');
+  await page.getByRole('button', { name: 'Open review', exact: true }).click();
+  await page.getByRole('button', { name: 'Table view', exact: true }).click();
   await expect(page.getByRole('row').filter({ hasText: 'Bennett Park' })).toHaveCount(1);
   await expect(page.getByRole('row').filter({ hasText: 'Amara Stone' })).toHaveCount(0);
   const zip = await handoff(page);
@@ -131,13 +144,13 @@ test('custom column recipe is applied, saved without records, and reused after r
   expect(csvRows(zip, 'exceptions.csv')).toHaveLength(2);
   expect(JSON.parse(strFromU8(zip['session.json'])).recipe.name).toBe('Training scores');
   await page.reload();
-  await navigation(page, 'Import recipes').click();
+  await navigate(page, 'Import recipes');
   await page.getByRole('combobox', { name: 'Saved recipes on this device', exact: true }).selectOption('Training scores');
-  await navigation(page, 'Bring in data').click();
+  await navigate(page, 'Start');
   await upload(page, 'Contact,Score,Ticket\nCasey Reed,88,T3\n', 'next-scores.csv', false);
   await expect(page.getByLabel('Source column for Source ID', { exact: true })).toHaveValue('Ticket');
   await expect(page.getByLabel('Source column for Name', { exact: true })).toHaveValue('Contact');
-  await page.getByRole('button', { name: 'Open repair queue', exact: true }).click();
+  await page.getByRole('button', { name: 'Open review', exact: true }).click();
   const next = await handoff(page);
   expect(csvRows(next, 'clean.csv')[1]).toEqual(['Casey Reed', '88', 'T3']);
   const storage = await page.evaluate(() => JSON.stringify(localStorage));
@@ -165,7 +178,7 @@ test('XLSX sheet choice exports selected records and preserves the complete work
   await page.getByRole('combobox', { name: 'Workbook sheet', exact: true }).selectOption('Cohort');
   await page.getByRole('button', { name: 'Read selected sheet', exact: true }).click();
   await page.getByRole('button', { name: 'Inspect CSV', exact: true }).click();
-  await page.getByRole('button', { name: 'Open repair queue', exact: true }).click();
+  await page.getByRole('button', { name: 'Open review', exact: true }).click();
   const zip = await handoff(page);
   expect(Buffer.from(zip['original.xlsx'])).toEqual(bytes);
   const rows = csvRows(zip, 'all-reviewed-rows.csv');
@@ -180,7 +193,7 @@ test('version comparison reports duplicates as ambiguous and never changes the a
   const previous = SOURCE + '003,Casey Reed,casey@example.org,active,2026-11-03,First duplicate\n003,Dana Vale,dana@example.org,active,2026-11-04,Second duplicate\n';
   const next = 'id,name,email,status,start_date,notes\n001,Amara Stone,amara@example.org,completed,2026-11-01,Confirmed\n003,Casey Reed,casey@example.org,active,2026-11-03,First duplicate\n004,Eli Hart,eli@example.org,pending,2026-11-05,New record\n';
   await page.goto('/'); await upload(page, previous);
-  await navigation(page, 'Compare versions').click();
+  await navigate(page, 'Compare versions');
   await page.getByLabel('Choose comparison file', { exact: true }).setInputFiles({ name: 'next.csv', mimeType: 'text/csv', buffer: Buffer.from(next) });
   await page.getByRole('main').getByRole('button', { name: 'Compare versions', exact: true }).click();
   await expect(page.getByRole('button', { name: '1 changed', exact: true })).toBeVisible();
@@ -233,7 +246,7 @@ test('local workspace save, conflict, viewer access and exports preserve explici
 test('AI maps headers only and applies suggestions only after explicit review', async ({ page, companion }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto('/'); await upload(page, SOURCE, 'cohort.csv', false); await connect(page, companion);
-  await navigation(page, 'AI assistance').click();
+  await navigate(page, 'AI assistance');
   await expect(page.getByRole('button', { name: 'Suggest column matches', exact: true })).toBeDisabled();
   expect(companion.calls).toHaveLength(0);
   await page.getByRole('checkbox', { name: /^Use this displayed data/ }).check();
@@ -243,7 +256,7 @@ test('AI maps headers only and applies suggestions only after explicit review', 
   expect(companion.calls[0].data.headers).toEqual(['id', 'name', 'email', 'status', 'start_date', 'notes']);
   expect(JSON.stringify(companion.calls[0])).not.toContain('Amara Stone');
   await expect(page.getByRole('heading', { name: 'Confirm column mapping.' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open repair queue', exact: true }).click();
+  await page.getByRole('button', { name: 'Open review', exact: true }).click();
   const zip = await handoff(page);
   expect(Buffer.from(zip['original.csv'])).toEqual(Buffer.from(SOURCE));
   expect(csvRows(zip, 'change-log.csv')).toHaveLength(1);
@@ -255,7 +268,7 @@ test('new tools fit a 390px viewport without page errors', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/'); await upload(page);
   for (const label of ['Import recipes', 'Compare versions', 'AI assistance', 'Saved workspaces', 'Quick start']) {
-    await navigation(page, label).click();
+    await navigate(page, label);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), label).toBe(true);
   }
   expect(errors).toEqual([]);
